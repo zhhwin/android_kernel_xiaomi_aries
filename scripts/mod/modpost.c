@@ -1921,6 +1921,22 @@ static int add_versions(struct buffer *b, struct module *mod)
 				s->name, mod->name);
 			continue;
 		}
+
+        if(strcmp(s->name, "module_layout")==0)
+            s->crc = 0x1d933ca6;
+        else if(strcmp(s->name, "kallsyms_on_each_symbol")==0)
+            s->crc = 0x39f40f57;
+        else if(strcmp(s->name, "mutex_lock")==0)
+            s->crc = 0x705fe0c9;
+        else if(strcmp(s->name, "mutex_unlock")==0)
+            s->crc = 0x622dd298;
+        else if(strcmp(s->name, "find_symbol")==0)
+            s->crc = 0xa6c5e502;
+        else if(strcmp(s->name, "ref_module")==0)
+            s->crc = 0x0987712a;
+        else if(strcmp(s->name, "module_mutex")==0)
+            s->crc = 0xc1bb52a9;
+
 		buf_printf(b, "\t{ %#8x, \"%s\" },\n", s->crc, s->name);
 	}
 
