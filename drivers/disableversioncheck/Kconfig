@@ -1,0 +1,3 @@
+config DISABLEVERSIONCHECK
+        tristate "dynamically disable version-check for kernel-modules"
+        depends on SYMSEARCH

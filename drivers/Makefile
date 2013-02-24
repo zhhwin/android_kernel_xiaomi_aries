@@ -143,3 +143,4 @@ obj-$(CONFIG_MOBICORE_SUPPORT)  += gud/
 
 obj-$(CONFIG_MSM_QDSS)		+= coresight/
 obj-$(CONFIG_SYMSEARCH)		+= symsearch/
+obj-$(CONFIG_DISABLEVERSIONCHECK)		+= disableversioncheck/
