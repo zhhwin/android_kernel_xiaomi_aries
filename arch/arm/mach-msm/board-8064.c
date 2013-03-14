@@ -765,6 +765,7 @@ static void __init apq8064_reserve(void)
 	apq8064_set_display_params(prim_panel_name, ext_panel_name,
 		ext_resolution);
 	msm_reserve();
+	msm_add_persistent_ram();
 }
 
 static void __init place_movable_zone(void)
@@ -3284,6 +3285,7 @@ static void __init apq8064_common_init(void)
 	BUG_ON(msm_pm_boot_init(&msm_pm_boot_pdata));
 	apq8064_epm_adc_init();
 	msm_pm_set_tz_retention_flag(1);
+	msm_add_ramconsole_devices();
 }
 
 static void __init apq8064_allocate_memory_regions(void)
