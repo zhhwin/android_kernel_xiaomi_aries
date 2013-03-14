@@ -43,6 +43,9 @@
 #include <mach/mpm.h>
 #include <mach/iommu_domains.h>
 #include <mach/msm_cache_dump.h>
+#include <asm/setup.h>
+#include <linux/persistent_ram.h>
+#include <linux/platform_data/ram_console.h>
 
 /* Address of GSBI blocks */
 #define MSM_GSBI1_PHYS		0x12440000
@@ -2767,3 +2770,64 @@ struct platform_device apq8064_cache_dump_device = {
 		.platform_data = &apq8064_cache_dump_pdata,
 	},
 };
+
+#ifdef CONFIG_ANDROID_PERSISTENT_RAM
+static struct persistent_ram_descriptor pram_descs[] = {
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+	{
+		.name = "ram_console",
+		.size = MSM_RAM_CONSOLE_SIZE,
+	},
+#endif
+};
+
+static struct persistent_ram msm_persistent_ram = {
+	.size = MSM_PERSISTENT_RAM_SIZE,
+	.num_descs = ARRAY_SIZE(pram_descs),
+	.descs = pram_descs,
+};
+
+void __init msm_add_persistent_ram(void)
+{
+	struct persistent_ram *pram = &msm_persistent_ram;
+	struct membank* bank = &meminfo.bank[0];
+
+	pram->start = bank->start + bank->size - MSM_PERSISTENT_RAM_SIZE;
+
+	persistent_ram_early_init(pram);
+}
+#endif
+
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+static char bootreason[128] = {0,};
+int __init msm_boot_reason(char *s)
+{
+	int n;
+
+	if (*s == '=')
+		s++;
+	n = snprintf(bootreason, sizeof(bootreason),
+		 "Boot info:\n"
+		 "Last boot reason: %s\n", s);
+	bootreason[n] = '\0';
+	return 1;
+}
+__setup("bootreason", msm_boot_reason);
+
+struct ram_console_platform_data ram_console_pdata = {
+	.bootinfo = bootreason,
+};
+
+static struct platform_device ram_console_device = {
+	.name = "ram_console",
+	.id = -1,
+	.dev = {
+		.platform_data = &ram_console_pdata,
+	}
+};
+
+void __init msm_add_ramconsole_devices(void)
+{
+	platform_device_register(&ram_console_device);
+}
+#endif /* CONFIG_ANDROID_RAM_CONSOLE */
