@@ -61,6 +61,7 @@ static struct resource msm_fb_resources[] = {
 #define LVDS_FRC_PANEL_NAME "lvds_frc_fhd"
 #define MIPI_VIDEO_TOSHIBA_WSVGA_PANEL_NAME "mipi_video_toshiba_wsvga"
 #define MIPI_VIDEO_CHIMEI_WXGA_PANEL_NAME "mipi_video_chimei_wxga"
+#define MIPI_CMD_HITACHI_720P_PANEL_NAME "mipi_cmd_hitachi_720p"
 #define HDMI_PANEL_NAME "hdmi_msm"
 #define TVOUT_PANEL_NAME "tvout_msm"
 
@@ -98,8 +99,8 @@ static int msm_fb_detect_panel(const char *name)
 				return 0;
 		}
 	} else if (machine_is_apq8064_mtp()) {
-		if (!strncmp(name, MIPI_VIDEO_TOSHIBA_WSVGA_PANEL_NAME,
-			strnlen(MIPI_VIDEO_TOSHIBA_WSVGA_PANEL_NAME,
+		if (!strncmp(name, MIPI_CMD_HITACHI_720P_PANEL_NAME,
+			strnlen(MIPI_CMD_HITACHI_720P_PANEL_NAME,
 				PANEL_NAME_MAX_LEN)))
 			return 0;
 	} else if (machine_is_apq8064_cdp()) {
@@ -680,16 +681,16 @@ static struct platform_device mipi_dsi2lvds_bridge_device = {
 	.dev.platform_data = &mipi_dsi2lvds_pdata,
 };
 
-static int toshiba_gpio[] = {LPM_CHANNEL};
-static struct mipi_dsi_panel_platform_data toshiba_pdata = {
-	.gpio = toshiba_gpio,
+static int renesas_gpio[] = {LPM_CHANNEL};
+static struct mipi_dsi_panel_platform_data renesas_pdata = {
+	.gpio = renesas_gpio,
 };
 
-static struct platform_device mipi_dsi_toshiba_panel_device = {
-	.name = "mipi_toshiba",
+static struct platform_device mipi_dsi_renesas_panel_device = {
+	.name = "mipi_renesas",
 	.id = 0,
 	.dev = {
-			.platform_data = &toshiba_pdata,
+			.platform_data = &renesas_pdata,
 	}
 };
 
@@ -997,7 +998,7 @@ void __init apq8064_init_fb(void)
 	if (machine_is_apq8064_liquid())
 		platform_device_register(&mipi_dsi2lvds_bridge_device);
 	if (machine_is_apq8064_mtp())
-		platform_device_register(&mipi_dsi_toshiba_panel_device);
+		platform_device_register(&mipi_dsi_renesas_panel_device);
 	if (machine_is_mpq8064_dtv())
 		platform_device_register(&lvds_frc_panel_device);
 
