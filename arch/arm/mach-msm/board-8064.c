@@ -3010,6 +3010,7 @@ static void __init apq8064_common_init(void)
 	msm_pm_init_sleep_status_data(&msm_pm_slp_sts_data);
 	apq8064_epm_adc_init();
 	msm_add_ramconsole_devices();
+	apq8064_add_backlight_devices();
 }
 
 static void __init apq8064_allocate_memory_regions(void)
