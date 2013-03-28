@@ -181,12 +181,22 @@ static char config_Panel_IF_Ctrl_10b_cmd_off[3] = {0x4C, 0x00, 0x02};
 
 static char config_Power_Ctrl_1a_cmd[3] = {0x4C, 0x30, 0x00};
 
+static char enter_sleep[2] = {0x10, 0x00}; /* DTYPE_DCS_WRITE */
+static char exit_sleep[2] = {0x11, 0x00}; /* DTYPE_DCS_WRITE */
+static char display_off[2] = {0x28, 0x00}; /* DTYPE_DCS_WRITE */
+static char display_on[2] = {0x29, 0x00}; /* DTYPE_DCS_WRITE */
+
 static struct dsi_cmd_desc renesas_sleep_off_cmds[] = {
 	{DTYPE_DCS_WRITE, 1, 0, 0, RENESAS_SLEEP_OFF_DELAY,
 		sizeof(config_sleep_out), config_sleep_out }
 };
 
 static struct dsi_cmd_desc renesas_display_off_cmds[] = {
+	{DTYPE_DCS_WRITE, 1, 0, 0, 10,
+		sizeof(display_off), display_off},
+	{DTYPE_DCS_WRITE, 1, 0, 0, 120,
+		sizeof(enter_sleep), enter_sleep},
+
 	/* Choosing Command Mode */
 	{DTYPE_DCS_WRITE1, 1, 0, 0, RENESAS_CMD_DELAY,
 		sizeof(config_CMD_MODE), config_CMD_MODE },
@@ -257,6 +267,11 @@ static struct dsi_cmd_desc renesas_display_off_cmds[] = {
 };
 
 static struct dsi_cmd_desc renesas_display_on_cmds[] = {
+	{DTYPE_DCS_WRITE, 1, 0, 0, 10,
+		sizeof(exit_sleep), exit_sleep},
+	{DTYPE_DCS_WRITE, 1, 0, 0, 10,
+		sizeof(display_on), display_on},
+
 	/* Choosing Command Mode */
 	{DTYPE_DCS_WRITE1, 1, 0, 0, RENESAS_CMD_DELAY,
 		sizeof(config_CMD_MODE), config_CMD_MODE },
