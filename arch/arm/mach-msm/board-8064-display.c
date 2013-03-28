@@ -683,9 +683,14 @@ static struct platform_device mipi_dsi2lvds_bridge_device = {
 	.dev.platform_data = &mipi_dsi2lvds_pdata,
 };
 
-static int renesas_gpio[] = {LPM_CHANNEL};
-static struct mipi_dsi_panel_platform_data renesas_pdata = {
-	.gpio = renesas_gpio,
+static int mipi_renesas_set_bl(int level)
+{
+	lm3530_set_backlight_brightness(level);
+	return 0;
+}
+
+static struct msm_panel_common_pdata renesas_pdata = {
+	.pmic_backlight = mipi_renesas_set_bl,
 };
 
 static struct platform_device mipi_dsi_renesas_panel_device = {
