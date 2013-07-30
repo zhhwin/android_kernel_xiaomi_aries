@@ -12,6 +12,7 @@
 
 #ifndef _LINUX_LED_LM3530_H__
 #define _LINUX_LED_LM3530_H__
+#include <linux/leds.h>
 
 #define LM3530_FS_CURR_5mA		(0) /* Full Scale Current */
 #define LM3530_FS_CURR_8mA		(1)
@@ -60,6 +61,7 @@
 
 enum lm3530_mode {
 	LM3530_BL_MODE_MANUAL = 0,	/* "man" */
+	LM3530_BL_MODE_I2C_PWM,		/* "man + pwm" */
 	LM3530_BL_MODE_ALS,		/* "als" */
 	LM3530_BL_MODE_PWM,		/* "pwm" */
 };
@@ -116,6 +118,11 @@ struct lm3530_platform_data {
 	u8 brt_val;
 
 	struct lm3530_pwm_data pwm_data;
+
+	u32 gpio;
+	bool disable_regulator;
 };
+
+void lm3530_set_backlight_brightness(enum led_brightness brt_val);
 
 #endif	/* _LINUX_LED_LM3530_H__ */
