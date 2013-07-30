@@ -130,6 +130,7 @@ obj-y += mipi_NT35590_cmd_720p_pt.o mipi_NT35590_video_720p_pt.o
 obj-y += mipi_chimei_wxga_pt.o
 obj-y += mipi_chimei_wuxga.o
 obj-y += mipi_truly_video_wvga_pt.o
+obj-y += mipi_hitachi_cmd_720p_pt.o
 else
 obj-$(CONFIG_FB_MSM_MIPI_TOSHIBA_VIDEO_WVGA_PT) += mipi_toshiba_video_wvga_pt.o
 obj-$(CONFIG_FB_MSM_MIPI_TOSHIBA_VIDEO_WSVGA_PT) += mipi_toshiba_video_wsvga_pt.o
@@ -151,6 +152,7 @@ obj-$(CONFIG_FB_MSM_MIPI_NT35590_VIDEO_720P_PT) += mipi_NT35590_video_720p_pt.o
 obj-$(CONFIG_FB_MSM_MIPI_SIMULATOR_VIDEO) += mipi_simulator_video.o
 obj-$(CONFIG_FB_MSM_MIPI_CHIMEI_WXGA) += mipi_chimei_wxga_pt.o
 obj-$(CONFIG_FB_MSM_MIPI_CHIMEI_WUXGA) += mipi_chimei_wuxga.o
+obj-$(CONFIG_FB_MSM_MIPI_HITACHI_CMD_720P_PT) += mipi_hitachi_cmd_720p_pt.o
 endif
 
 obj-$(CONFIG_FB_MSM_LCDC_PANEL) += lcdc_panel.o
