@@ -18,7 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
-#include <linux/platform_data/lm35xx_bl.h>
+#include <linux/led-lm3530.h>
 #include <linux/bootmem.h>
 #include <linux/ion.h>
 #include <asm/mach-types.h>
@@ -739,8 +739,8 @@ static int hdmi_cec_power(int on)
 #if defined(CONFIG_FB_MSM_MIPI_LGIT_VIDEO_WXGA_PT)
 static int mipi_lgit_backlight_level(int level, int max, int min)
 {
-#ifdef CONFIG_BACKLIGHT_LM3530
-	lm3530_lcd_backlight_set_level(level);
+#ifdef CONFIG_LEDS_LM3530
+	lm3530_set_backlight_brightness(level);
 #endif
 
 	return 0;
@@ -895,11 +895,6 @@ static struct msm_panel_common_pdata mipi_lgit_pdata = {
 	.power_off_set_2 = lgit_power_off_set_2,
 	.power_off_set_size_1 = ARRAY_SIZE(lgit_power_off_set_1),
 	.power_off_set_size_2 =ARRAY_SIZE(lgit_power_off_set_2),
-
-#ifdef CONFIG_LGIT_VIDEO_WXGA_CABC
-	.bl_pwm_disable = lm3530_lcd_backlight_pwm_disable,
-#endif
-	.bl_on_status = lm3530_lcd_backlight_on_status,
 };
 
 static struct platform_device mipi_dsi_lgit_panel_device = {
@@ -940,32 +935,25 @@ void __init apq8064_init_fb(void)
 
 }
 
-#ifdef CONFIG_LGIT_VIDEO_WXGA_CABC
-#define PWM_SIMPLE_EN 0xA0
-#define PWM_BRIGHTNESS 0x20
-#endif
-
-#if defined (CONFIG_BACKLIGHT_LM3530)
-static struct backlight_platform_data lm3530_data = {
-
-	.gpio = PM8921_GPIO_PM_TO_SYS(24),
-#ifdef CONFIG_LGIT_VIDEO_WXGA_CABC
-	.max_current = 0x17 | PWM_BRIGHTNESS,
-#else
-	.max_current = 0x17,
-#endif
-	.min_brightness = 0x02,
-	.max_brightness = 0x72,
-	.default_brightness = 0x11,
-	.blmap = NULL,
-	.blmap_size = 0,
+#if defined (CONFIG_LEDS_LM3530)
+static struct lm3530_platform_data lm3530_data = {
+	.mode = LM3530_BL_MODE_I2C_PWM,
+	.als_input_mode = LM3530_INPUT_AVRG,
+	.max_current = LM3530_FS_CURR_22mA,
+	.pwm_pol_hi = false,
+	.als_avrg_time = LM3530_ALS_AVRG_TIME_32ms,
+	.brt_ramp_law = 1,
+	.brt_ramp_fall = LM3530_RAMP_TIME_1ms,
+	.brt_ramp_rise = LM3530_RAMP_TIME_1ms,
+	.gpio = PM8921_GPIO_PM_TO_SYS(13),
+	.disable_regulator = true,
 };
 #endif
 
 static struct i2c_board_info msm_i2c_backlight_info[] = {
 	{
-#if defined(CONFIG_BACKLIGHT_LM3530)
-		I2C_BOARD_INFO("lm3530", 0x38),
+#if defined(CONFIG_LEDS_LM3530)
+		I2C_BOARD_INFO("lm3530-led", 0x38),
 		.platform_data = &lm3530_data,
 #endif
 	}
