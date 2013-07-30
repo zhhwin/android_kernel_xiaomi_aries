@@ -34,137 +34,325 @@
 #include <linux/i2c.h>
 
 #include <linux/earlysuspend.h>
-#include <linux/input/lge_touch_core.h>
+#include <linux/i2c/atmel_mxt_ts.h>
 #include <mach/board_lge.h>
 #include "board-mako.h"
 
 /* TOUCH GPIOS */
-#define SYNAPTICS_TS_I2C_SDA                 	8
-#define SYNAPTICS_TS_I2C_SCL                 	9
-#define SYNAPTICS_TS_I2C_INT_GPIO            	6
-#define TOUCH_RESET                             33
-
-#define TOUCH_FW_VERSION                        1
+#define ATMEL_TS_I2C_INT_GPIO		6
+#define ATMEL_TS_RESET_GPIO			PM8921_GPIO_PM_TO_SYS(8)
+#define ATMEL_TS_IRQ_GPIO			6
+#define ATMEL_TS_POWER_GPIO			PM8921_GPIO_PM_TO_SYS(5)
 
 /* touch screen device */
 #define APQ8064_GSBI3_QUP_I2C_BUS_ID            3
 
-int synaptics_t1320_power_on(int on)
+static int mxt_init_hw(bool init)
 {
-	int rc = -EINVAL;
-	static struct regulator *vreg_l15 = NULL;
-	static struct regulator *vreg_l22 = NULL;
+	int rc=0;
 
-	/* 3.3V_TOUCH_VDD, VREG_L15: 2.75 ~ 3.3 */
-	if (!vreg_l15) {
-		vreg_l15 = regulator_get(NULL, "touch_vdd");
-		if (IS_ERR(vreg_l15)) {
-			pr_err("%s: regulator get of 8921_l15 failed (%ld)\n",
-					__func__,
-			       PTR_ERR(vreg_l15));
-			rc = PTR_ERR(vreg_l15);
-			vreg_l15 = NULL;
-			return rc;
+	if (init) {
+		rc = gpio_request(ATMEL_TS_POWER_GPIO, "mxt_gpio_power");
+		if (!rc) {
+			rc = gpio_direction_output(ATMEL_TS_POWER_GPIO, 0);
+			if (rc) {
+				gpio_free(ATMEL_TS_POWER_GPIO);
+				pr_err("%s: unable to set direction gpio %d\n", __func__, ATMEL_TS_POWER_GPIO);
+			}
+		} 
+		else {
+			pr_err("%s: unable to request power gpio %d\n", __func__, ATMEL_TS_POWER_GPIO);
 		}
-	}
-	/* 1.8V_TOUCH_IO, VREG_L22: 1.7 ~ 2.85 */
-	if (!vreg_l22) {
-		vreg_l22 = regulator_get(NULL, "touch_io");
-		if (IS_ERR(vreg_l22)) {
-			pr_err("%s: regulator get of 8921_l22 failed (%ld)\n",
-					__func__,
-			       PTR_ERR(vreg_l22));
-			rc = PTR_ERR(vreg_l22);
-			vreg_l22 = NULL;
-			return rc;
-		}
-	}
-
-	rc = regulator_set_voltage(vreg_l15, 3300000, 3300000);
-	rc |= regulator_set_voltage(vreg_l22, 1800000, 1800000);
-	if (rc < 0) {
-		printk(KERN_INFO "[Touch D] %s: cannot control regulator\n",
-		       __func__);
-		return rc;
-	}
-
-	if (on) {
-		printk("[Touch D]touch enable\n");
-		regulator_enable(vreg_l15);
-		regulator_enable(vreg_l22);
-	} else {
-		printk("[Touch D]touch disable\n");
-		regulator_disable(vreg_l15);
-		regulator_disable(vreg_l22);
+	} 
+	else {
+		gpio_free(ATMEL_TS_POWER_GPIO);
 	}
 
 	return rc;
 }
 
-static struct touch_power_module touch_pwr = {
-	.use_regulator = 0,
-	.vdd = "8921_l15",
-	.vdd_voltage = 3300000,
-	.vio = "8921_l22",
-	.vio_voltage = 1800000,
-	.power = synaptics_t1320_power_on,
+static int mxt_power_on(bool on)
+{
+	gpio_set_value(ATMEL_TS_POWER_GPIO, on);
+	msleep(1);
+	return 0;
+}
+
+static int mxt_key_codes[MXT_KEYARRAY_MAX_KEYS] = {
+	KEY_MENU, KEY_HOME, KEY_BACK,
 };
 
-static struct touch_device_caps touch_caps = {
-	.button_support = 0,
-	.is_width_major_supported = 1,
-	.is_width_minor_supported = 0,
-	.is_pressure_supported = 1,
-	.is_id_supported = 1,
-	.max_width_major = 15,
-	.max_width_minor = 15,
-	.max_pressure = 0xFF,
-	.max_id = 10,
-	.lcd_x = 768,
-	.lcd_y = 1280,
-	.x_max = 1536-1,
-	.y_max = 2560-1,
+static const u8 mxt336s_config_wintek_jdi[] = {
+	0, 0, 0, 0, 0, 0, 1, 1, 29, 231,
+	229, 218, 0, 2, 255, 255, 255, 3, 28, 0,
+	10, 10, 0, 0, 1, 12, 1, 128, 11, 0,
+	0, 24, 13, 0, 96, 35, 2, 1, 5, 8, 
+	8, 0, 10, 5, 15, 15, 255, 4, 207, 2, 
+	0, 0, 0, 0, 188, 30, 242, 60, 16, 5, 
+	40, 42, 0, 0, 3, 19, 13, 3, 1, 0,
+	48, 30, 2, 0, 0, 4, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 3, 0,
+	212, 112, 76, 93, 212, 112, 116, 78, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	16, 16, 0, 0, 3, 0, 0, 1, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 3, 0, 1,
+	32, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+	5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+	5, 5, 5, 5, 5, 2, 0, 1, 2, 4,
+	2, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 1, 3, 0, 7, 0, 0, 0, 0,
+	0, 0, 2, 13, 15, 18, 5, 0, 10, 5, 
+	5, 80, 18, 16, 40, 15, 52, 32, 32, 4, 
+	64, 0, 0, 0, 0, 0, 80, 40, 2, 8, 
+	8, 0, 10, 20, 20, 5, 5, 0, 0, 232,
+	60, 242, 60, 15, 5, 0,
 };
 
-static struct touch_operation_role touch_role = {
-	.operation_mode = INTERRUPT_MODE,
-	.key_type = KEY_NONE,
-	.report_mode = REDUCED_REPORT_MODE,
-	.delta_pos_threshold = 1,
-	.orientation = 0,
-	.booting_delay = 200,
-	.reset_delay = 20,
-	.suspend_pwr = POWER_OFF,
-	.resume_pwr = POWER_ON,
-	.jitter_filter_enable = 0,
-	.jitter_curr_ratio = 30,
-	.accuracy_filter_enable = 0,
-	.irqflags = IRQF_TRIGGER_FALLING,
-	.show_touches = 0,
-	.pointer_location = 0,
+static const u8 mxt336s_config_wintek_sharp[] = {
+	0, 0, 0, 0, 0, 0, 2, 1, 29, 171,
+	246, 148, 0, 1, 255, 255, 255, 3, 28, 0,
+	10, 10, 0, 0, 1, 12, 1, 128, 11, 0,
+	0, 24, 13, 0, 96, 35, 2, 1, 5, 8,
+	8, 0, 10, 5, 15, 15, 255, 4, 207, 2,
+	0, 0, 0, 0, 188, 30, 242, 60, 16, 5,
+	40, 42, 0, 0, 3, 19, 13, 3, 1, 0,
+	48, 30, 2, 0, 0, 4, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 3, 0,
+	212, 112, 76, 93, 212, 112, 116, 78, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	16, 16, 0, 0, 3, 0, 0, 1, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 3, 0, 1,
+	32, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+	5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+	5, 5, 5, 5, 5, 2, 0, 1, 2, 4,
+	2, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 1, 3, 0, 7, 0, 0, 0, 0,
+	0, 6, 12, 13, 22, 27, 5, 0, 10, 5,
+	5, 80, 12, 22, 40, 15, 52, 32, 32, 4,
+	64, 0, 0, 0, 0, 0, 80, 40, 2, 8,
+	8, 0, 10, 20, 20, 5, 5, 0, 0, 232,
+	60, 242, 60, 15, 5, 0,
 };
 
-static struct touch_platform_data mako_ts_data = {
-	.int_pin = SYNAPTICS_TS_I2C_INT_GPIO,
-	.reset_pin = TOUCH_RESET,
-	.maker = "Synaptics",
-	.caps = &touch_caps,
-	.role = &touch_role,
-	.pwr = &touch_pwr,
+static const u8 mxt336s_config_wintek_jdi_fw20[] = {
+	0, 0, 0, 0, 0, 0, 1, 1, 8, 187,
+	215, 84, 0, 2, 15, 15, 0, 0, 2, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 255, 255, 255, 3,
+	13, 0, 10, 10, 0, 0, 1, 12, 1, 128,
+	11, 0, 0, 24, 13, 0, 64, 35, 0, 1,
+	5, 8, 2, 0, 10, 5, 15, 15, 255, 4,
+	207, 2, 0, 0, 0, 0, 188, 30, 178, 60,
+	16, 5, 40, 42, 0, 2, 67, 150, 65, 100,
+	128, 32, 35, 50, 60, 120, 0, 1, 1, 5,
+	5, 0, 0, 0, 0, 0, 3, 19, 13, 3,
+	1, 0, 16, 18, 2, 0, 0, 4, 0, 0,
+	0, 0, 0, 0, 0, 3, 0, 144, 101, 8,
+	82, 224, 110, 160, 79, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	8, 0, 32, 16, 0, 0, 3, 0, 0, 1,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 1, 50, 64, 0,
+	0, 0, 20, 1, 0, 1, 33, 5, 5, 5,
+	5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+	5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+	5, 2, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 1, 6, 0, 0, 0, 0, 0,
+	0, 0, 0, 1, 0, 0, 0, 0, 0, 1,
+	26, 0, 9, 0, 0, 8, 0, 0, 0, 1,
+	26, 0, 9, 0, 0, 34, 1, 0, 0, 1,
+	22, 0, 9, 0, 0, 8, 2, 0, 0, 1,
+	22, 0, 9, 0, 0, 34, 3, 0, 0, 1,
+	24, 0, 9, 0, 0, 8, 4, 0, 0, 1,
+	24, 0, 9, 0, 0, 34, 5, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+	0, 0, 0, 0, 5, 10, 5, 5, 32, 10,
+	25, 6, 5, 32, 65, 0, 64, 0, 0, 14,
+	1, 6, 10, 11, 12, 20, 20, 20, 20, 20,
+	20, 20, 20, 20, 20, 0, 0, 0, 0, 15,
+	1, 6, 10, 11, 12, 42, 42, 42, 42, 42,
+	42, 42, 42, 42, 42, 0, 0, 0, 0, 15,
+	1, 6, 10, 11, 12, 63, 63, 63, 63, 63,
+	63, 63, 63, 63, 63, 0, 0, 0, 0,
 };
 
-static struct i2c_board_info synaptics_ts_info[] = {
+static const u8 mxt336s_config_wintek_sharp_fw20[] = {
+	0, 0, 0, 0, 0, 0, 2, 1, 8, 82,
+	87, 236, 0, 1, 15, 15, 0, 0, 2, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 255, 255, 255, 3,
+	13, 0, 10, 10, 0, 0, 1, 12, 1, 128,
+	11, 0, 0, 24, 13, 0, 64, 35, 0, 1,
+	5, 8, 2, 0, 10, 5, 15, 15, 255, 4,
+	207, 2, 0, 0, 0, 0, 188, 30, 178, 60,
+	16, 5, 40, 42, 0, 2, 67, 150, 65, 100,
+	128, 32, 35, 50, 60, 120, 0, 1, 1, 5,
+	5, 0, 0, 0, 0, 0, 3, 19, 13, 3, 
+	1, 0, 16, 18, 2, 0, 0, 4, 0, 0,
+	0, 0, 0, 0, 0, 3, 0, 144, 101, 8, 
+	82, 224, 110, 160, 79, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	8, 0, 32, 16, 0, 0, 3, 0, 0, 1,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 1, 50, 64, 0,
+	0, 0, 20, 1, 0, 1, 33, 5, 5, 5,
+	5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+	5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+	5, 2, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 1, 6, 0, 0, 0, 0, 0,
+	0, 0, 0, 1, 0, 0, 0, 0, 0, 1,
+	26, 0, 9, 0, 0, 8, 0, 0, 0, 1,
+	26, 0, 9, 0, 0, 34, 1, 0, 0, 1,
+	22, 0, 9, 0, 0, 8, 2, 0, 0, 1,
+	22, 0, 9, 0, 0, 34, 3, 0, 0, 1,
+	24, 0, 9, 0, 0, 8, 4, 0, 0, 1,
+	24, 0, 9, 0, 0, 34, 5, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+	0, 0, 0, 0, 5, 10, 5, 5, 32, 10,
+	25, 6, 5, 32, 65, 0, 64, 0, 0, 14,
+	0, 4, 8, 11, 16, 20, 20, 20, 20, 20,
+	20, 20, 20, 20, 20, 0, 0, 0, 0, 15,
+	0, 4, 8, 11, 16, 42, 42, 42, 42, 42,
+	42, 42, 42, 42, 42, 0, 0, 0, 0, 15,
+	0, 4, 8, 11, 16, 63, 63, 63, 63, 63,
+	63, 63, 63, 63, 63, 0, 0, 0, 0,
+};
+
+static const u8 mxt336s_config_wintek_jdi_fw21[] = {
+	0, 0, 0, 0, 0, 0, 1, 1, 2, 1,
+	255, 5, 0, 2, 15, 15, 0, 0, 2, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0,
+};
+
+static const u8 mxt336s_config_wintek_sharp_fw21[] = {
+	0, 0, 0, 0, 0, 0, 2, 1, 2, 232,
+	127, 189, 0, 1, 15, 15, 0, 0, 2, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+};
+
+static const struct mxt_config_info mxt336s_config_array[] = {
+	{
+		.config		= mxt336s_config_wintek_jdi,
+		.config_length	= ARRAY_SIZE(mxt336s_config_wintek_jdi),
+		.family_id	= 0x82,
+		.variant_id	= 0x19,
+		.version	= 0x10,
+		.build		= 0xAA,
+		.bootldr_id	= MXT_BOOTLOADER_ID_336S,
+	},
+	{
+		.config		= mxt336s_config_wintek_sharp,
+		.config_length	= ARRAY_SIZE(mxt336s_config_wintek_sharp),
+		.family_id	= 0x82,
+		.variant_id	= 0x19,
+		.version	= 0x10,
+		.build		= 0xAA,
+		.bootldr_id	= MXT_BOOTLOADER_ID_336S,
+	},
+	{	.config		= mxt336s_config_wintek_jdi_fw20,
+		.config_length	= ARRAY_SIZE(mxt336s_config_wintek_jdi_fw20),
+		.family_id	= 0x82,
+		.variant_id	= 0x19,
+		.version	= 0x10,
+		.build		= 0x01,
+		.bootldr_id	= MXT_BOOTLOADER_ID_336S,
+	},
+	{
+		.config		= mxt336s_config_wintek_sharp_fw20,
+		.config_length	= ARRAY_SIZE(mxt336s_config_wintek_sharp_fw20),
+		.family_id	= 0x82,
+		.variant_id	= 0x19,
+		.version	= 0x10,
+		.build		= 0x01,
+		.bootldr_id	= MXT_BOOTLOADER_ID_336S,
+	},
+	{
+		.config         = mxt336s_config_wintek_jdi_fw21,
+		.config_length  = ARRAY_SIZE(mxt336s_config_wintek_jdi_fw21),
+		.family_id      = 0x82,
+		.variant_id     = 0x29,
+		.version        = 0x11,
+		.build          = 0x1,
+		.bootldr_id     = MXT_BOOTLOADER_ID_336S,
+	},
+	{
+		.config         = mxt336s_config_wintek_sharp_fw21,
+		.config_length  = ARRAY_SIZE(mxt336s_config_wintek_sharp_fw21),
+		.family_id      = 0x82,
+		.variant_id     = 0x29,
+		.version        = 0x11,
+		.build          = 0x1,
+		.bootldr_id     = MXT_BOOTLOADER_ID_336S,
+	},
+};
+
+static struct mxt_platform_data mxt336s_platform_data = {
+	.config_array		= mxt336s_config_array,
+	.config_array_size	= ARRAY_SIZE(mxt336s_config_array),
+	.panel_minx		= 0,
+	.panel_maxx		= 719,
+	.panel_miny		= 0,
+	.panel_maxy		= 1279,
+	.disp_minx		= 0,
+	.disp_maxx		= 719,
+	.disp_miny		= 0,
+	.disp_maxy		= 1279,
+	.irqflags		= IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+	.i2c_pull_up		= false,
+	.reset_gpio		= ATMEL_TS_RESET_GPIO,
+	.irq_gpio		= ATMEL_TS_IRQ_GPIO,
+	.digital_pwr_regulator	= false,
+	.key_codes		= mxt_key_codes,
+	.read_chg		= NULL,
+	.init_hw		= mxt_init_hw,
+	.power_on		= mxt_power_on,
+};
+
+static struct i2c_board_info mxt336s_device_info[] = {
 	[0] = {
-		I2C_BOARD_INFO(LGE_TOUCH_NAME, 0x20),
-		.platform_data = &mako_ts_data,
-		.irq = MSM_GPIO_TO_INT(SYNAPTICS_TS_I2C_INT_GPIO),
+		I2C_BOARD_INFO("atmel_mxt_ts", 0x4b),
+		.platform_data = &mxt336s_platform_data,
+		.irq = MSM_GPIO_TO_INT(ATMEL_TS_I2C_INT_GPIO),
 	},
 };
 
 void __init apq8064_init_input(void)
 {
-	printk(KERN_INFO "[Touch D] %s: NOT DCM KDDI, reg synaptics driver \n",
+	printk(KERN_INFO "[Touch D] %s: NOT DCM KDDI, reg atmel driver \n",
 	       __func__);
 	i2c_register_board_info(APQ8064_GSBI3_QUP_I2C_BUS_ID,
-				&synaptics_ts_info[0], 1);
+				&mxt336s_device_info[0], 1);
 }
