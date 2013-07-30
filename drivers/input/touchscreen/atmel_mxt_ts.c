@@ -1894,7 +1894,7 @@ static void mxt_input_close(struct input_dev *dev)
 
 static int reg_set_optimum_mode_check(struct regulator *reg, int load_uA)
 {
-	return (regulator_count_voltages(reg) > 0) ?
+	return (reg && regulator_count_voltages(reg) > 0) ?
 		regulator_set_optimum_mode(reg, load_uA) : 0;
 }
 
