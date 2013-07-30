@@ -135,6 +135,7 @@ VREG_CONSUMERS(L23) = {
 	REGULATOR_SUPPLY("pll_vdd",		"pil_qdsp6v4.2"),
 	REGULATOR_SUPPLY("HSUSB_1p8",		"msm_ehci_host.0"),
 	REGULATOR_SUPPLY("HSUSB_1p8",		"msm_ehci_host.1"),
+	REGULATOR_SUPPLY("dsi_mi_vddio",	"mipi_dsi.1"),
 };
 VREG_CONSUMERS(L24) = {
 	REGULATOR_SUPPLY("8921_l24",		NULL),
@@ -261,6 +262,10 @@ VREG_CONSUMERS(8821_S1) = {
 };
 VREG_CONSUMERS(EXT_DSV_LOAD) = {
 	REGULATOR_SUPPLY("ext_dsv_load",		NULL),
+};
+VREG_CONSUMERS(EXT_5P4V) = {
+	REGULATOR_SUPPLY("ext_5p4v",    NULL),
+	REGULATOR_SUPPLY("dsi_mi_vsp",    "mipi_dsi.1"),
 };
 
 #define PM8XXX_VREG_INIT(_id, _name, _min_uV, _max_uV, _modes, _ops, \
@@ -488,6 +493,7 @@ struct gpio_regulator_platform_data
 apq8064_gpio_regulator_pdata[] __devinitdata = {
 	/*	ID	vreg_name gpio_label	gpio		supply */
 	GPIO_VREG(EXT_DSV_LOAD, "ext_dsv_load", "ext_dsv_load_en", APQ8064_EXT_DSV_LOAD_EN_GPIO, NULL),
+	GPIO_VREG(EXT_5P4V, "ext_5p4v", "ext_5p4v_en", PM8921_GPIO_PM_TO_SYS(11), NULL),
 };
 
 /* SAW regulator constraints */
