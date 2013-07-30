@@ -181,6 +181,53 @@ static char config_Panel_IF_Ctrl_10b_cmd_off[3] = {0x4C, 0x00, 0x02};
 
 static char config_Power_Ctrl_1a_cmd[3] = {0x4C, 0x30, 0x00};
 
+static char mcap_start[2] = {0xb0, 0x04};
+static char mcap_data[33] = {0xca, 0x01, 0x80, 0x88, 0x8c, 0xbc, 0x8c, 0x8c, 0x8c, 0x18, 0x3f, 0x14, 0xff, 0x0a, 0x4a, 0x37, 0xa0, 0x55, 0xf8, 0x0c, 0x0c, 0x20, 0x10, 0x3f, 0x3f, 0x00, 0x00, 0x10, 0x10, 0x3f, 0x3f, 0x3f, 0x3f};
+static char mcap_end[2] = {0xb0, 0x03};
+static char display_on[2] = {0x29, 0x00};
+static char display_off[2] = {0x28, 0x00};
+static char enter_sleep[2] = {0x10, 0x00};
+static char hitachi_on_cmd1[3] = {0x51, 0xe, 0xff};
+static char hitachi_on_cmd2[2] = {0x53, 0x2c};
+static char hitachi_on_cmd3[2] = {0x55, 0x01};
+static char hitachi_on_cmd4[5] = {0x2a, 0x00, 0x00, 0x02, 0xcf};
+static char hitachi_on_cmd5[5] = {0x2b, 0x00, 0x00, 0x04, 0xff};
+static char hitachi_on_cmd6[2] = {0x3a, 0x77};
+
+static struct dsi_cmd_desc renesas_hitachi_off_cmds[] = {
+	{DTYPE_DCS_WRITE, 1, 0, 0, 20,
+		sizeof(display_off), display_off},
+	{DTYPE_DCS_WRITE, 1, 0, 0, 200,
+		sizeof(enter_sleep), enter_sleep},
+};
+
+static struct dsi_cmd_desc renesas_hitachi_on_cmds[] = {
+	{DTYPE_DCS_WRITE, 1, 0, 0, 120,
+		sizeof(config_sleep_out), config_sleep_out},
+	{DTYPE_GEN_WRITE2, 1, 0, 0, RENESAS_CMD_DELAY,
+		sizeof(mcap_start), mcap_start},
+	{DTYPE_GEN_LWRITE, 1, 0, 0, RENESAS_CMD_DELAY,
+		sizeof(mcap_data), mcap_data},
+	{DTYPE_GEN_WRITE2, 1, 0, 0, RENESAS_CMD_DELAY,
+		sizeof(mcap_end), mcap_end},
+	{DTYPE_DCS_LWRITE, 1, 0, 0, RENESAS_CMD_DELAY,
+		sizeof(hitachi_on_cmd1), hitachi_on_cmd1},
+	{DTYPE_DCS_WRITE1, 1, 0, 0, RENESAS_CMD_DELAY,
+		sizeof(hitachi_on_cmd2), hitachi_on_cmd2},
+	{DTYPE_DCS_WRITE1, 1, 0, 0, RENESAS_CMD_DELAY,
+		sizeof(hitachi_on_cmd3), hitachi_on_cmd3},
+	{DTYPE_DCS_LWRITE, 1, 0, 0, RENESAS_CMD_DELAY,
+		sizeof(hitachi_on_cmd4), hitachi_on_cmd4},
+	{DTYPE_DCS_LWRITE, 1, 0, 0, 20,
+		sizeof(hitachi_on_cmd5), hitachi_on_cmd5},
+	{DTYPE_DCS_WRITE1, 1, 0, 0, 20,
+		sizeof(config_MADCTL), config_MADCTL},
+	{DTYPE_DCS_WRITE1, 1, 0, 0, RENESAS_CMD_DELAY,
+		sizeof(hitachi_on_cmd6), hitachi_on_cmd6},
+	{DTYPE_DCS_WRITE, 1, 0, 0, 20,
+		sizeof(display_on), display_on},
+};
+
 static struct dsi_cmd_desc renesas_sleep_off_cmds[] = {
 	{DTYPE_DCS_WRITE, 1, 0, 0, RENESAS_SLEEP_OFF_DELAY,
 		sizeof(config_sleep_out), config_sleep_out }
@@ -1171,6 +1218,44 @@ static int mipi_renesas_lcd_off(struct platform_device *pdev)
 	return 0;
 }
 
+static int mipi_renesas_hitachi_on(struct platform_device *pdev)
+{
+	struct msm_fb_data_type *mfd;
+	struct mipi_panel_info *mipi;
+
+	mfd = platform_get_drvdata(pdev);
+	mipi  = &mfd->panel_info.mipi;
+
+	if (!mfd)
+		return -ENODEV;
+	if (mfd->key != MFD_KEY)
+		return -EINVAL;
+
+	mipi_dsi_cmds_tx(&renesas_tx_buf, renesas_hitachi_on_cmds,
+		ARRAY_SIZE(renesas_hitachi_on_cmds));
+
+	return 0;
+}
+
+static int mipi_renesas_hitachi_off(struct platform_device *pdev)
+{
+	struct msm_fb_data_type *mfd;
+	struct mipi_panel_info *mipi;
+
+	mfd = platform_get_drvdata(pdev);
+	mipi  = &mfd->panel_info.mipi;
+
+	if (!mfd)
+		return -ENODEV;
+	if (mfd->key != MFD_KEY)
+		return -EINVAL;
+
+	mipi_dsi_cmds_tx(&renesas_tx_buf, renesas_hitachi_off_cmds,
+		ARRAY_SIZE(renesas_hitachi_off_cmds));
+
+	return 0;
+}
+
 static int __devinit mipi_renesas_lcd_probe(struct platform_device *pdev)
 {
 	if (pdev->id == 0) {
@@ -1209,6 +1294,12 @@ static struct msm_fb_panel_data renesas_panel_data = {
 	.set_backlight = mipi_renesas_set_backlight,
 };
 
+static struct msm_fb_panel_data renesas_hitachi_panel_data = {
+	.on		= mipi_renesas_hitachi_on,
+	.off	= mipi_renesas_hitachi_off,
+	.set_backlight = mipi_renesas_set_backlight,
+};
+
 static int ch_used[3];
 
 int mipi_renesas_device_register(struct msm_panel_info *pinfo,
@@ -1231,10 +1322,16 @@ int mipi_renesas_device_register(struct msm_panel_info *pinfo,
 	if (!pdev)
 		return -ENOMEM;
 
-	renesas_panel_data.panel_info = *pinfo;
-
-	ret = platform_device_add_data(pdev, &renesas_panel_data,
+	if (panel == MIPI_DSI_PANEL_720P_PT) {
+		renesas_hitachi_panel_data.panel_info = *pinfo;
+		ret = platform_device_add_data(pdev, &renesas_hitachi_panel_data,
+		sizeof(renesas_hitachi_panel_data));
+	} else {
+		renesas_panel_data.panel_info = *pinfo;
+		ret = platform_device_add_data(pdev, &renesas_panel_data,
 		sizeof(renesas_panel_data));
+	}
+
 	if (ret) {
 		pr_err("%s: platform_device_add_data failed!\n", __func__);
 		goto err_device_put;
