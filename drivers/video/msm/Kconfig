@@ -387,6 +387,11 @@ config FB_MSM_MIPI_NT35516_CMD_QHD_PT
         select FB_MSM_MIPI_DSI_NT35516
         default n
 
+config FB_MSM_MIPI_HITACHI_CMD_720P_PT
+        bool
+        select FB_MSM_MIPI_DSI_RENESAS
+        default n
+
 
 config FB_MSM_MIPI_CHIMEI_WXGA
 	bool "LVDS Chimei WXGA Panel using Toshiba MIPI DSI-to-LVDS bridge."
@@ -567,6 +572,7 @@ config FB_MSM_MIPI_PANEL_DETECT
 	select FB_MSM_MIPI_SIMULATOR_VIDEO
 	select FB_MSM_MIPI_CHIMEI_WXGA
 	select FB_MSM_MIPI_CHIMEI_WUXGA
+	select FB_MSM_MIPI_HITACHI_CMD_720P_PT
 	---help---
 	  Support for MIPI panel auto detect
 
@@ -605,6 +611,7 @@ config FB_MSM_LCDC_MIPI_PANEL_AUTO_DETECT
 	select FB_MSM_MIPI_NT35516_VIDEO_QHD_PT
 	select FM_MSM_MIPI_NT35516_CMD_QHD_PT
 	select FB_MSM_MIPI_SIMULATOR_VIDEO
+	select FB_MSM_MIPI_HITACHI_CMD_720P_PT
 	---help---
 	  Support for LCDC + MIPI panel auto detect
 
@@ -627,6 +634,7 @@ config FB_MSM_LVDS_MIPI_PANEL_DETECT
 	select FB_MSM_MIPI_SIMULATOR_VIDEO
 	select FB_MSM_MIPI_CHIMEI_WXGA
 	select FB_MSM_MIPI_CHIMEI_WUXGA
+	select FB_MSM_MIPI_HITACHI_CMD_720P_PT
 	---help---
 	  Support for LVDS + MIPI panel auto detect
 
@@ -731,6 +739,10 @@ config FB_MSM_MIPI_NT35516_CMD_QHD_PT_PANEL
 config FB_MSM_MIPI_SIMULATOR_VIDEO_PANEL
 	bool "MIPI Simulator Video Panel"
 	select FB_MSM_MIPI_SIMULATOR_VIDEO
+
+config FB_MSM_MIPI_HITACHI_CMD_720P_PT_PANEL
+	bool "MIPI Hitachi Command 720P PT Panel"
+	select FB_MSM_MIPI_HITACHI_CMD_720P_PT
 
 config FB_MSM_EBI2_TMD_QVGA_EPSON_QCIF
 	bool "EBI2 TMD QVGA Epson QCIF Dual Panel"
