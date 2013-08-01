@@ -2946,8 +2946,6 @@ static int set_battery_data(struct pm8921_bms_chip *chip)
 		goto desay;
 	else if (chip->batt_type == BATT_PALLADIUM)
 		goto palladium;
-	else if (chip->batt_type == BATT_LGE)
-		goto lge;
 	else if (chip->batt_type == BATT_LG_1900)
 		goto lg_1900;
 	else if (chip->batt_type == BATT_LG_3000)
@@ -3015,8 +3013,6 @@ desay:
 		chip->rbatt_sf_lut = desay_5200_data.rbatt_sf_lut;
 		chip->default_rbatt_mohm = desay_5200_data.default_rbatt_mohm;
 		chip->delta_rbatt_mohm = desay_5200_data.delta_rbatt_mohm;
-		return 0;
-lge:
 		return 0;
 lg_1900:
 		printk("%s lg battery IC used\n", __func__);
