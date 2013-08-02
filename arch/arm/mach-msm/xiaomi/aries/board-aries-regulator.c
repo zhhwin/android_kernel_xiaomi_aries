@@ -28,6 +28,7 @@ VREG_CONSUMERS(L1) = {
 };
 VREG_CONSUMERS(L2) = {
 	REGULATOR_SUPPLY("8921_l2",		NULL),
+	REGULATOR_SUPPLY("dsi_vdda",		"mipi_dsi.1"),
 	REGULATOR_SUPPLY("mipi_csi_vdd",	"msm_csid.0"),
 	REGULATOR_SUPPLY("mipi_csi_vdd",	"msm_csid.1"),
 	REGULATOR_SUPPLY("mipi_csi_vdd",	"msm_csid.2"),
@@ -125,6 +126,7 @@ VREG_CONSUMERS(L23) = {
 	REGULATOR_SUPPLY("pll_vdd",		"pil_qdsp6v4.2"),
 	REGULATOR_SUPPLY("HSUSB_1p8",		"msm_ehci_host.0"),
 	REGULATOR_SUPPLY("HSUSB_1p8",		"msm_ehci_host.1"),
+	REGULATOR_SUPPLY("dsi_mi_vddio",	"mipi_dsi.1"),
 };
 VREG_CONSUMERS(L24) = {
 	REGULATOR_SUPPLY("8921_l24",		NULL),
@@ -253,6 +255,10 @@ VREG_CONSUMERS(EXT_3P3V) = {
 	REGULATOR_SUPPLY("dsi1_vccs_3p3v",      "mipi_dsi.1"),
 	REGULATOR_SUPPLY("hdmi_mux_vdd",        "hdmi_msm.0"),
 	REGULATOR_SUPPLY("pcie_ext_3p3v",       "msm_pcie"),
+};
+VREG_CONSUMERS(EXT_5P4V) = {
+	REGULATOR_SUPPLY("ext_5p4v",	NULL),
+	REGULATOR_SUPPLY("dsi_mi_vsp",	"mipi_dsi.1"),
 };
 VREG_CONSUMERS(EXT_TS_SW) = {
 	REGULATOR_SUPPLY("ext_ts_sw",		NULL),
@@ -559,6 +565,8 @@ apq8064_gpio_regulator_pdata[] __devinitdata = {
 	GPIO_VREG(EXT_5V, "ext_5v", "ext_5v_en", PM8921_MPP_PM_TO_SYS(7), NULL),
 	GPIO_VREG(EXT_3P3V, "ext_3p3v", "ext_3p3v_en",
 		  APQ8064_EXT_3P3V_REG_EN_GPIO, NULL),
+	GPIO_VREG(EXT_5P4V, "ext_5p4v", "ext_5p4v_en",
+		  PM8921_GPIO_PM_TO_SYS(11), NULL),
 	GPIO_VREG(EXT_TS_SW, "ext_ts_sw", "ext_ts_sw_en",
 		  PM8921_GPIO_PM_TO_SYS(23), "ext_3p3v"),
 	GPIO_VREG(EXT_MPP8, "ext_mpp8", "ext_mpp8_en",
