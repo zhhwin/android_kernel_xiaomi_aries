@@ -13,8 +13,10 @@
 
 #include <linux/init.h>
 #include <linux/ioport.h>
+#include <linux/i2c.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
+#include <linux/led-lm3530.h>
 #include <linux/bootmem.h>
 #include <linux/msm_ion.h>
 #include <asm/mach-types.h>
@@ -30,16 +32,47 @@
 
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 /* prim = 1366 x 768 x 3(bpp) x 3(pages) */
+#if defined(CONFIG_FB_MSM_MIPI_HITACHI_CMD_720P_PT)
+#define MSM_FB_PRIM_BUF_SIZE roundup(768 * 1280 * 4 * 3, 0x10000)
+#else
 #define MSM_FB_PRIM_BUF_SIZE roundup(1920 * 1088 * 4 * 3, 0x10000)
+#endif
 #else
 /* prim = 1366 x 768 x 3(bpp) x 2(pages) */
+#if defined(CONFIG_FB_MSM_MIPI_HITACHI_CMD_720P_PT)
+#define MSM_FB_PRIM_BUF_SIZE roundup(768 * 1280 * 4 * 2, 0x10000)
+#else
 #define MSM_FB_PRIM_BUF_SIZE roundup(1920 * 1088 * 4 * 2, 0x10000)
 #endif
+#endif /*CONFIG_FB_MSM_TRIPLE_BUFFER */
 
-#define MSM_FB_SIZE roundup(MSM_FB_PRIM_BUF_SIZE, 4096)
+#ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL
+#define MSM_FB_EXT_BUF_SIZE \
+		(roundup((1920 * 1088 * 2), 4096) * 1) /* 2 bpp x 1 page */
+#elif defined(CONFIG_FB_MSM_TVOUT)
+#define MSM_FB_EXT_BUF_SIZE \
+		(roundup((720 * 576 * 2), 4096) * 2) /* 2 bpp x 2 pages */
+#else
+#define MSM_FB_EXT_BUF_SIZE	0
+#endif /* CONFIG_FB_MSM_HDMI_MSM_PANEL */
+
+#ifdef CONFIG_FB_MSM_WRITEBACK_MSM_PANEL
+#define MSM_FB_WFD_BUF_SIZE \
+		(roundup((1280 * 736 * 2), 4096) * 3) /* 2 bpp x 3 page */
+#else
+#define MSM_FB_WFD_BUF_SIZE     0
+#endif
+
+#define MSM_FB_SIZE \
+	roundup(MSM_FB_PRIM_BUF_SIZE + \
+		MSM_FB_EXT_BUF_SIZE + MSM_FB_WFD_BUF_SIZE, 4096)
 
 #ifdef CONFIG_FB_MSM_OVERLAY0_WRITEBACK
-#define MSM_FB_OVERLAY0_WRITEBACK_SIZE roundup((1376 * 768 * 3 * 2), 4096)
+	#if defined(CONFIG_FB_MSM_MIPI_HITACHI_CMD_720P_PT)
+	#define MSM_FB_OVERLAY0_WRITEBACK_SIZE roundup((768 * 1280 * 3 * 2), 4096)
+	#else
+	#define MSM_FB_OVERLAY0_WRITEBACK_SIZE (0)
+	#endif
 #else
 #define MSM_FB_OVERLAY0_WRITEBACK_SIZE (0)
 #endif  /* CONFIG_FB_MSM_OVERLAY0_WRITEBACK */
@@ -50,23 +83,14 @@
 #define MSM_FB_OVERLAY1_WRITEBACK_SIZE (0)
 #endif  /* CONFIG_FB_MSM_OVERLAY1_WRITEBACK */
 
-
 static struct resource msm_fb_resources[] = {
 	{
 		.flags = IORESOURCE_DMA,
 	}
 };
 
-#define LVDS_CHIMEI_PANEL_NAME "lvds_chimei_wxga"
-#define LVDS_FRC_PANEL_NAME "lvds_frc_fhd"
-#define MIPI_VIDEO_TOSHIBA_WSVGA_PANEL_NAME "mipi_video_toshiba_wsvga"
-#define MIPI_VIDEO_CHIMEI_WXGA_PANEL_NAME "mipi_video_chimei_wxga"
 #define HDMI_PANEL_NAME "hdmi_msm"
 #define MHL_PANEL_NAME "hdmi_msm,mhl_8334"
-#define TVOUT_PANEL_NAME "tvout_msm"
-
-#define LVDS_PIXEL_MAP_PATTERN_1	1
-#define LVDS_PIXEL_MAP_PATTERN_2	2
 
 #ifdef CONFIG_FB_MSM_HDMI_AS_PRIMARY
 static unsigned char hdmi_is_primary = 1;
@@ -90,50 +114,7 @@ static void set_mdp_clocks_for_wuxga(void);
 
 static int msm_fb_detect_panel(const char *name)
 {
-	u32 version;
-	if (machine_is_apq8064_liquid()) {
-		version = socinfo_get_platform_version();
-		if ((SOCINFO_VERSION_MAJOR(version) == 1) &&
-			(SOCINFO_VERSION_MINOR(version) == 1)) {
-			if (!strncmp(name, MIPI_VIDEO_CHIMEI_WXGA_PANEL_NAME,
-				strnlen(MIPI_VIDEO_CHIMEI_WXGA_PANEL_NAME,
-					PANEL_NAME_MAX_LEN)))
-				return 0;
-		} else {
-			if (!strncmp(name, LVDS_CHIMEI_PANEL_NAME,
-				strnlen(LVDS_CHIMEI_PANEL_NAME,
-					PANEL_NAME_MAX_LEN)))
-				return 0;
-		}
-	} else if (machine_is_apq8064_mtp()) {
-		if (!strncmp(name, MIPI_VIDEO_TOSHIBA_WSVGA_PANEL_NAME,
-			strnlen(MIPI_VIDEO_TOSHIBA_WSVGA_PANEL_NAME,
-				PANEL_NAME_MAX_LEN)))
-			return 0;
-	} else if (machine_is_apq8064_cdp()) {
-		if (!strncmp(name, LVDS_CHIMEI_PANEL_NAME,
-			strnlen(LVDS_CHIMEI_PANEL_NAME,
-				PANEL_NAME_MAX_LEN)))
-			return 0;
-	} else if (machine_is_mpq8064_dtv()) {
-		if (!strncmp(name, LVDS_FRC_PANEL_NAME,
-			strnlen(LVDS_FRC_PANEL_NAME,
-			PANEL_NAME_MAX_LEN))) {
-			set_mdp_clocks_for_wuxga();
-			return 0;
-		}
-	}
-
-	if (!strncmp(name, HDMI_PANEL_NAME,
-			strnlen(HDMI_PANEL_NAME,
-				PANEL_NAME_MAX_LEN))) {
-		if (apq8064_hdmi_as_primary_selected())
-			set_mdp_clocks_for_wuxga();
-		return 0;
-	}
-
-
-	return -ENODEV;
+	return 0;
 }
 
 static struct msm_fb_platform_data msm_fb_pdata = {
@@ -348,7 +329,7 @@ static struct platform_device wfd_device = {
 #define HDMI_DDC_DATA_GPIO	71
 #define HDMI_HPD_GPIO		72
 
-static bool dsi_power_on;
+static bool dsi_power_on = false;
 static int mipi_dsi_panel_power(int on)
 {
 	static struct regulator *reg_l2, *reg_l23, *reg_lvs7, *reg_ext_5p4v;
@@ -486,205 +467,6 @@ static int mipi_dsi_panel_power(int on)
 
 static struct mipi_dsi_platform_data mipi_dsi_pdata = {
 	.dsi_power_save = mipi_dsi_panel_power,
-};
-
-static bool lvds_power_on;
-static int lvds_panel_power(int on)
-{
-	static struct regulator *reg_lvs7, *reg_l2, *reg_ext_3p3v;
-	static int gpio36, gpio26, mpp3;
-	int rc;
-
-	pr_debug("%s: on=%d\n", __func__, on);
-
-	if (!lvds_power_on) {
-		reg_lvs7 = regulator_get(&msm_lvds_device.dev,
-				"lvds_vdda");
-		if (IS_ERR_OR_NULL(reg_lvs7)) {
-			pr_err("could not get 8921_lvs7, rc = %ld\n",
-				PTR_ERR(reg_lvs7));
-			return -ENODEV;
-		}
-
-		reg_l2 = regulator_get(&msm_lvds_device.dev,
-				"lvds_pll_vdda");
-		if (IS_ERR_OR_NULL(reg_l2)) {
-			pr_err("could not get 8921_l2, rc = %ld\n",
-				PTR_ERR(reg_l2));
-			return -ENODEV;
-		}
-
-		rc = regulator_set_voltage(reg_l2, 1200000, 1200000);
-		if (rc) {
-			pr_err("set_voltage l2 failed, rc=%d\n", rc);
-			return -EINVAL;
-		}
-
-		reg_ext_3p3v = regulator_get(&msm_lvds_device.dev,
-			"lvds_vccs_3p3v");
-		if (IS_ERR_OR_NULL(reg_ext_3p3v)) {
-			pr_err("could not get reg_ext_3p3v, rc = %ld\n",
-			       PTR_ERR(reg_ext_3p3v));
-		    return -ENODEV;
-		}
-
-		gpio26 = PM8921_GPIO_PM_TO_SYS(26);
-		rc = gpio_request(gpio26, "pwm_backlight_ctrl");
-		if (rc) {
-			pr_err("request gpio 26 failed, rc=%d\n", rc);
-			return -ENODEV;
-		}
-
-		gpio36 = PM8921_GPIO_PM_TO_SYS(36); /* lcd1_pwr_en_n */
-		rc = gpio_request(gpio36, "lcd1_pwr_en_n");
-		if (rc) {
-			pr_err("request gpio 36 failed, rc=%d\n", rc);
-			return -ENODEV;
-		}
-
-		mpp3 = PM8921_MPP_PM_TO_SYS(3);
-		rc = gpio_request(mpp3, "backlight_en");
-		if (rc) {
-			pr_err("request mpp3 failed, rc=%d\n", rc);
-			return -ENODEV;
-		}
-
-		lvds_power_on = true;
-	}
-
-	if (on) {
-		rc = regulator_enable(reg_lvs7);
-		if (rc) {
-			pr_err("enable lvs7 failed, rc=%d\n", rc);
-			return -ENODEV;
-		}
-
-		rc = regulator_set_optimum_mode(reg_l2, 100000);
-		if (rc < 0) {
-			pr_err("set_optimum_mode l2 failed, rc=%d\n", rc);
-			return -EINVAL;
-		}
-		rc = regulator_enable(reg_l2);
-		if (rc) {
-			pr_err("enable l2 failed, rc=%d\n", rc);
-			return -ENODEV;
-		}
-
-		rc = regulator_enable(reg_ext_3p3v);
-		if (rc) {
-			pr_err("enable reg_ext_3p3v failed, rc=%d\n", rc);
-			return -ENODEV;
-		}
-
-		gpio_set_value_cansleep(gpio36, 0);
-		gpio_set_value_cansleep(mpp3, 1);
-		if (socinfo_get_pmic_model() == PMIC_MODEL_PM8917)
-			gpio_set_value_cansleep(gpio26, 1);
-	} else {
-		if (socinfo_get_pmic_model() == PMIC_MODEL_PM8917)
-			gpio_set_value_cansleep(gpio26, 0);
-		gpio_set_value_cansleep(mpp3, 0);
-		gpio_set_value_cansleep(gpio36, 1);
-
-		rc = regulator_disable(reg_lvs7);
-		if (rc) {
-			pr_err("disable reg_lvs7 failed, rc=%d\n", rc);
-			return -ENODEV;
-		}
-		rc = regulator_disable(reg_l2);
-		if (rc) {
-			pr_err("disable reg_l2 failed, rc=%d\n", rc);
-			return -ENODEV;
-		}
-		rc = regulator_disable(reg_ext_3p3v);
-		if (rc) {
-			pr_err("disable reg_ext_3p3v failed, rc=%d\n", rc);
-			return -ENODEV;
-		}
-	}
-
-	return 0;
-}
-
-static int lvds_pixel_remap(void)
-{
-	u32 ver = socinfo_get_version();
-
-	if (machine_is_apq8064_cdp() ||
-	    machine_is_apq8064_liquid()) {
-		if ((SOCINFO_VERSION_MAJOR(ver) == 1) &&
-		    (SOCINFO_VERSION_MINOR(ver) == 0))
-			return LVDS_PIXEL_MAP_PATTERN_1;
-	} else if (machine_is_mpq8064_dtv()) {
-		if ((SOCINFO_VERSION_MAJOR(ver) == 1) &&
-		    (SOCINFO_VERSION_MINOR(ver) == 0))
-			return LVDS_PIXEL_MAP_PATTERN_2;
-	}
-	return 0;
-}
-
-static struct lcdc_platform_data lvds_pdata = {
-	.lcdc_power_save = lvds_panel_power,
-	.lvds_pixel_remap = lvds_pixel_remap
-};
-
-#define LPM_CHANNEL 2
-static int lvds_chimei_gpio[] = {LPM_CHANNEL};
-
-static struct lvds_panel_platform_data lvds_chimei_pdata = {
-	.gpio = lvds_chimei_gpio,
-};
-
-static struct platform_device lvds_chimei_panel_device = {
-	.name = "lvds_chimei_wxga",
-	.id = 0,
-	.dev = {
-		.platform_data = &lvds_chimei_pdata,
-	}
-};
-
-#define FRC_GPIO_UPDATE	(SX150X_EXP4_GPIO_BASE + 8)
-#define FRC_GPIO_RESET	(SX150X_EXP4_GPIO_BASE + 9)
-#define FRC_GPIO_PWR	(SX150X_EXP4_GPIO_BASE + 10)
-
-static int lvds_frc_gpio[] = {FRC_GPIO_UPDATE, FRC_GPIO_RESET, FRC_GPIO_PWR};
-static struct lvds_panel_platform_data lvds_frc_pdata = {
-	.gpio = lvds_frc_gpio,
-};
-
-static struct platform_device lvds_frc_panel_device = {
-	.name = "lvds_frc_fhd",
-	.id = 0,
-	.dev = {
-		.platform_data = &lvds_frc_pdata,
-	}
-};
-
-static int dsi2lvds_gpio[2] = {
-	LPM_CHANNEL,/* Backlight PWM-ID=0 for PMIC-GPIO#24 */
-	0x1F08 /* DSI2LVDS Bridge GPIO Output, mask=0x1f, out=0x08 */
-};
-static struct msm_panel_common_pdata mipi_dsi2lvds_pdata = {
-	.gpio_num = dsi2lvds_gpio,
-};
-
-static struct platform_device mipi_dsi2lvds_bridge_device = {
-	.name = "mipi_tc358764",
-	.id = 0,
-	.dev.platform_data = &mipi_dsi2lvds_pdata,
-};
-
-static int toshiba_gpio[] = {LPM_CHANNEL};
-static struct mipi_dsi_panel_platform_data toshiba_pdata = {
-	.gpio = toshiba_gpio,
-};
-
-static struct platform_device mipi_dsi_toshiba_panel_device = {
-	.name = "mipi_toshiba",
-	.id = 0,
-	.dev = {
-			.platform_data = &toshiba_pdata,
-	}
 };
 
 static struct msm_bus_vectors dtv_bus_init_vectors[] = {
@@ -891,7 +673,6 @@ static int hdmi_gpio_config(int on)
 {
 	int rc = 0;
 	static int prev_on;
-	int pmic_gpio14 = PM8921_GPIO_PM_TO_SYS(14);
 
 	if (on == prev_on)
 		return 0;
@@ -915,33 +696,20 @@ static int hdmi_gpio_config(int on)
 				"HDMI_HPD", HDMI_HPD_GPIO, rc);
 			goto error3;
 		}
-		if (machine_is_apq8064_liquid()) {
-			rc = gpio_request(pmic_gpio14, "PMIC_HDMI_MUX_SEL");
-			if (rc) {
-				pr_err("'%s'(%d) gpio_request failed, rc=%d\n",
-					"PMIC_HDMI_MUX_SEL", 14, rc);
-				goto error4;
-			}
-			gpio_set_value_cansleep(pmic_gpio14, 0);
-		}
 		pr_debug("%s(on): success\n", __func__);
+
 	} else {
 		gpio_free(HDMI_DDC_CLK_GPIO);
 		gpio_free(HDMI_DDC_DATA_GPIO);
 		gpio_free(HDMI_HPD_GPIO);
 
-		if (machine_is_apq8064_liquid()) {
-			gpio_set_value_cansleep(pmic_gpio14, 1);
-			gpio_free(pmic_gpio14);
-		}
 		pr_debug("%s(off): success\n", __func__);
 	}
 
 	prev_on = on;
+
 	return 0;
 
-error4:
-	gpio_free(HDMI_HPD_GPIO);
 error3:
 	gpio_free(HDMI_DDC_DATA_GPIO);
 error2:
@@ -978,28 +746,94 @@ error:
 	return rc;
 }
 
+#if defined(CONFIG_FB_MSM_MIPI_HITACHI_CMD_720P_PT)
+#if defined(CONFIG_LEDS_LM3530)
+static int mipi_renesas_set_bl(int level)
+{
+	lm3530_set_backlight_brightness(level);
+	return 0;
+}
+#endif
+
+static struct msm_panel_common_pdata renesas_pdata = {
+#if defined(CONFIG_LEDS_LM3530)
+	.pmic_backlight = mipi_renesas_set_bl,
+#endif
+};
+
+static struct platform_device mipi_dsi_renesas_panel_device = {
+	.name = "mipi_renesas",
+	.id = 0,
+	.dev = {
+		.platform_data = &renesas_pdata,
+	}
+};
+#endif
+
 void __init apq8064_init_fb(void)
 {
 	platform_device_register(&msm_fb_device);
-	platform_device_register(&lvds_chimei_panel_device);
 
 #ifdef CONFIG_FB_MSM_WRITEBACK_MSM_PANEL
 	platform_device_register(&wfd_panel_device);
 	platform_device_register(&wfd_device);
 #endif
 
-	if (machine_is_apq8064_liquid())
-		platform_device_register(&mipi_dsi2lvds_bridge_device);
-	if (machine_is_apq8064_mtp())
-		platform_device_register(&mipi_dsi_toshiba_panel_device);
-	if (machine_is_mpq8064_dtv())
-		platform_device_register(&lvds_frc_panel_device);
+#if defined(CONFIG_FB_MSM_MIPI_HITACHI_CMD_720P_PT)
+	platform_device_register(&mipi_dsi_renesas_panel_device);
+#endif
 
 	msm_fb_register_device("mdp", &mdp_pdata);
-	msm_fb_register_device("lvds", &lvds_pdata);
 	msm_fb_register_device("mipi_dsi", &mipi_dsi_pdata);
+
 	platform_device_register(&hdmi_msm_device);
 	msm_fb_register_device("dtv", &dtv_pdata);
+
+}
+
+#if defined (CONFIG_LEDS_LM3530)
+static struct lm3530_platform_data lm3530_data = {
+	.mode = LM3530_BL_MODE_I2C_PWM,
+	.als_input_mode = LM3530_INPUT_AVRG,
+	.max_current = LM3530_FS_CURR_22mA,
+	.pwm_pol_hi = false,
+	.als_avrg_time = LM3530_ALS_AVRG_TIME_32ms,
+	.brt_ramp_law = 1,
+	.brt_ramp_fall = LM3530_RAMP_TIME_1ms,
+	.brt_ramp_rise = LM3530_RAMP_TIME_1ms,
+	.gpio = PM8921_GPIO_PM_TO_SYS(13),
+	.disable_regulator = true,
+};
+#endif
+
+static struct i2c_board_info msm_i2c_backlight_info[] = {
+	{
+#if defined(CONFIG_LEDS_LM3530)
+		I2C_BOARD_INFO("lm3530-led", 0x38),
+		.platform_data = &lm3530_data,
+#endif
+	}
+};
+
+static struct i2c_registry apq8064_i2c_backlight_device[] __initdata = {
+	{
+		I2C_FFA,
+		APQ_8064_GSBI1_QUP_I2C_BUS_ID,
+		msm_i2c_backlight_info,
+		ARRAY_SIZE(msm_i2c_backlight_info),
+	},
+};
+
+void __init xiaomi_add_backlight_devices(void)
+{
+	int i;
+
+	/* Run the array and install devices as appropriate */
+	for (i = 0; i < ARRAY_SIZE(apq8064_i2c_backlight_device); ++i) {
+		i2c_register_board_info(apq8064_i2c_backlight_device[i].bus,
+					apq8064_i2c_backlight_device[i].info,
+					apq8064_i2c_backlight_device[i].len);
+	}
 }
 
 /**
