@@ -34,7 +34,6 @@
 #include <linux/msm_thermal.h>
 #include <linux/i2c/atmel_mxt_ts.h>
 #include <linux/cyttsp-qc.h>
-#include <linux/i2c/isa1200.h>
 #include <linux/gpio_keys.h>
 #include <linux/epm_adc.h>
 #include <linux/i2c/sx150x.h>
@@ -1172,109 +1171,6 @@ static struct i2c_board_info cs8427_device_info[] __initdata = {
 	},
 };
 
-#define HAP_SHIFT_LVL_OE_GPIO		PM8921_MPP_PM_TO_SYS(8)
-#define ISA1200_HAP_EN_GPIO		PM8921_GPIO_PM_TO_SYS(33)
-#define ISA1200_HAP_LEN_GPIO		PM8921_GPIO_PM_TO_SYS(20)
-#define ISA1200_HAP_CLK_PM8921		PM8921_GPIO_PM_TO_SYS(44)
-#define ISA1200_HAP_CLK_PM8917		PM8921_GPIO_PM_TO_SYS(38)
-
-static int isa1200_clk_enable(bool on)
-{
-	unsigned int gpio = ISA1200_HAP_CLK_PM8921;
-	int rc = 0;
-
-	if (socinfo_get_pmic_model() == PMIC_MODEL_PM8917)
-		gpio = ISA1200_HAP_CLK_PM8917;
-
-	gpio_set_value_cansleep(gpio, on);
-
-	if (on) {
-		rc = pm8xxx_aux_clk_control(CLK_MP3_2, XO_DIV_1, true);
-		if (rc) {
-			pr_err("%s: unable to write aux clock register(%d)\n",
-				__func__, rc);
-			goto err_gpio_dis;
-		}
-	} else {
-		rc = pm8xxx_aux_clk_control(CLK_MP3_2, XO_DIV_NONE, true);
-		if (rc)
-			pr_err("%s: unable to write aux clock register(%d)\n",
-				__func__, rc);
-	}
-
-	return rc;
-
-err_gpio_dis:
-	gpio_set_value_cansleep(gpio, !on);
-	return rc;
-}
-
-static int isa1200_dev_setup(bool enable)
-{
-	unsigned int gpio = ISA1200_HAP_CLK_PM8921;
-	int rc = 0;
-
-	if (socinfo_get_pmic_model() == PMIC_MODEL_PM8917)
-		gpio = ISA1200_HAP_CLK_PM8917;
-
-	if (!enable)
-		goto free_gpio;
-
-	rc = gpio_request(gpio, "haptics_clk");
-	if (rc) {
-		pr_err("%s: unable to request gpio %d config(%d)\n",
-			__func__, gpio, rc);
-		return rc;
-	}
-
-	rc = gpio_direction_output(gpio, 0);
-	if (rc) {
-		pr_err("%s: unable to set direction\n", __func__);
-		goto free_gpio;
-	}
-
-	return 0;
-
-free_gpio:
-	gpio_free(gpio);
-	return rc;
-}
-
-static struct isa1200_regulator isa1200_reg_data[] = {
-	{
-		.name = "vddp",
-		.min_uV = ISA_I2C_VTG_MIN_UV,
-		.max_uV = ISA_I2C_VTG_MAX_UV,
-		.load_uA = ISA_I2C_CURR_UA,
-	},
-};
-
-static struct isa1200_platform_data isa1200_1_pdata = {
-	.name = "vibrator",
-	.dev_setup = isa1200_dev_setup,
-	.clk_enable = isa1200_clk_enable,
-	.need_pwm_clk = true,
-	.hap_en_gpio = ISA1200_HAP_EN_GPIO,
-	.hap_len_gpio = ISA1200_HAP_LEN_GPIO,
-	.max_timeout = 15000,
-	.mode_ctrl = PWM_GEN_MODE,
-	.pwm_fd = {
-		.pwm_div = 256,
-	},
-	.is_erm = false,
-	.smart_en = true,
-	.ext_clk_en = true,
-	.chip_en = 1,
-	.regulator_info = isa1200_reg_data,
-	.num_regulators = ARRAY_SIZE(isa1200_reg_data),
-};
-
-static struct i2c_board_info isa1200_board_info[] __initdata = {
-	{
-		I2C_BOARD_INFO("isa1200_1", 0x90>>1),
-		.platform_data = &isa1200_1_pdata,
-	},
-};
 /* configuration data for mxt1386e using V2.1 firmware */
 static const u8 mxt1386e_config_data_v2_1[] = {
 	/* T6 Object */
@@ -2813,12 +2709,6 @@ static struct i2c_registry apq8064_i2c_devices[] __initdata = {
 		ARRAY_SIZE(cyttsp_info),
 	},
 	{
-		I2C_FFA | I2C_LIQUID,
-		APQ_8064_GSBI1_QUP_I2C_BUS_ID,
-		isa1200_board_info,
-		ARRAY_SIZE(isa1200_board_info),
-	},
-	{
 		I2C_MPQ_CDP,
 		APQ_8064_GSBI5_QUP_I2C_BUS_ID,
 		cs8427_device_info,
@@ -3146,6 +3036,7 @@ static void __init apq8064_aries_init(void)
 	platform_device_register(&mtp_kp_pdev);
 
 	apq8064_init_input();
+	apq8064_init_misc();
 }
 
 MACHINE_START(APQ8064_MTP, "QCT APQ8064 ARIES")
