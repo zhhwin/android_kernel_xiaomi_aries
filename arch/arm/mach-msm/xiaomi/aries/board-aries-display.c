@@ -351,8 +351,8 @@ static struct platform_device wfd_device = {
 static bool dsi_power_on;
 static int mipi_dsi_panel_power(int on)
 {
-	static struct regulator *reg_lvs7, *reg_l2, *reg_l11, *reg_ext_3p3v;
-	static int gpio36, gpio25, gpio26, mpp3;
+	static struct regulator *reg_l2, *reg_l23, *reg_lvs7, *reg_ext_5p4v;
+	static int gpio12, gpio25;
 	int rc;
 
 	pr_debug("%s: on=%d\n", __func__, on);
@@ -367,7 +367,7 @@ static int mipi_dsi_panel_power(int on)
 		}
 
 		reg_l2 = regulator_get(&msm_mipi_dsi1_device.dev,
-				"dsi1_pll_vdda");
+				"dsi_vdda");
 		if (IS_ERR_OR_NULL(reg_l2)) {
 			pr_err("could not get 8921_l2, rc = %ld\n",
 				PTR_ERR(reg_l2));
@@ -379,54 +379,40 @@ static int mipi_dsi_panel_power(int on)
 			pr_err("set_voltage l2 failed, rc=%d\n", rc);
 			return -EINVAL;
 		}
-		reg_l11 = regulator_get(&msm_mipi_dsi1_device.dev,
-						"dsi1_avdd");
-		if (IS_ERR(reg_l11)) {
-				pr_err("could not get 8921_l11, rc = %ld\n",
-						PTR_ERR(reg_l11));
-				return -ENODEV;
-		}
-		rc = regulator_set_voltage(reg_l11, 3000000, 3000000);
-		if (rc) {
-				pr_err("set_voltage l11 failed, rc=%d\n", rc);
-				return -EINVAL;
+
+		reg_l23 = regulator_get(&msm_mipi_dsi1_device.dev,
+				"dsi_mi_vddio");
+		if (IS_ERR_OR_NULL(reg_l23)) {
+			pr_err("could not get 8921_l23, rc = %ld\n",
+				PTR_ERR(reg_l23));
+			return -ENODEV;
 		}
 
-		if (machine_is_apq8064_liquid()) {
-			reg_ext_3p3v = regulator_get(&msm_mipi_dsi1_device.dev,
-				"dsi1_vccs_3p3v");
-			if (IS_ERR_OR_NULL(reg_ext_3p3v)) {
-				pr_err("could not get reg_ext_3p3v, rc = %ld\n",
-					PTR_ERR(reg_ext_3p3v));
-				reg_ext_3p3v = NULL;
-				return -ENODEV;
-			}
-			mpp3 = PM8921_MPP_PM_TO_SYS(3);
-			rc = gpio_request(mpp3, "backlight_en");
-			if (rc) {
-				pr_err("request mpp3 failed, rc=%d\n", rc);
-				return -ENODEV;
-			}
+		rc = regulator_set_voltage(reg_l23, 1800000, 1800000);
+		if (rc) {
+			pr_err("set_voltage l23 failed, rc=%d\n", rc);
+			return -EINVAL;
+		}
+
+		reg_ext_5p4v = regulator_get(&msm_mipi_dsi1_device.dev,
+				"dsi_mi_vsp");
+		if (IS_ERR_OR_NULL(reg_ext_5p4v)) {
+			pr_err("could not get VSP/VSN regulator, rc = %ld\n",
+				PTR_ERR(reg_ext_5p4v));
+			return -ENODEV;
 		}
 
 		gpio25 = PM8921_GPIO_PM_TO_SYS(25);
 		rc = gpio_request(gpio25, "disp_rst_n");
 		if (rc) {
-			pr_err("request gpio 25 failed, rc=%d\n", rc);
+			pr_err("request pm8921 gpio 25 failed, rc=%d\n", rc);
 			return -ENODEV;
 		}
 
-		gpio26 = PM8921_GPIO_PM_TO_SYS(26);
-		rc = gpio_request(gpio26, "pwm_backlight_ctrl");
+		gpio12 = PM8921_GPIO_PM_TO_SYS(12);
+		rc = gpio_request(gpio12, "disp_id_det");
 		if (rc) {
-			pr_err("request gpio 26 failed, rc=%d\n", rc);
-			return -ENODEV;
-		}
-
-		gpio36 = PM8921_GPIO_PM_TO_SYS(36); /* lcd1_pwr_en_n */
-		rc = gpio_request(gpio36, "lcd1_pwr_en_n");
-		if (rc) {
-			pr_err("request gpio 36 failed, rc=%d\n", rc);
+			pr_err("request pm8921 gpio 12 failed, rc=%d\n", rc);
 			return -ENODEV;
 		}
 
@@ -434,74 +420,57 @@ static int mipi_dsi_panel_power(int on)
 	}
 
 	if (on) {
-		rc = regulator_enable(reg_lvs7);
-		if (rc) {
-			pr_err("enable lvs7 failed, rc=%d\n", rc);
-			return -ENODEV;
-		}
-
-		rc = regulator_set_optimum_mode(reg_l11, 110000);
-		if (rc < 0) {
-			pr_err("set_optimum_mode l11 failed, rc=%d\n", rc);
-			return -EINVAL;
-		}
-		rc = regulator_enable(reg_l11);
-		if (rc) {
-			pr_err("enable l11 failed, rc=%d\n", rc);
-			return -ENODEV;
-		}
-
 		rc = regulator_set_optimum_mode(reg_l2, 100000);
 		if (rc < 0) {
 			pr_err("set_optimum_mode l2 failed, rc=%d\n", rc);
 			return -EINVAL;
 		}
+
 		rc = regulator_enable(reg_l2);
 		if (rc) {
 			pr_err("enable l2 failed, rc=%d\n", rc);
 			return -ENODEV;
 		}
 
-		if (machine_is_apq8064_liquid()) {
-			rc = regulator_enable(reg_ext_3p3v);
-			if (rc) {
-				pr_err("enable reg_ext_3p3v failed, rc=%d\n",
-					rc);
-				return -ENODEV;
-			}
-			gpio_set_value_cansleep(mpp3, 1);
-		}
-
-		gpio_set_value_cansleep(gpio36, 0);
-		gpio_set_value_cansleep(gpio25, 1);
-		if (socinfo_get_pmic_model() == PMIC_MODEL_PM8917)
-			gpio_set_value_cansleep(gpio26, 1);
-	} else {
-		if (socinfo_get_pmic_model() == PMIC_MODEL_PM8917)
-			gpio_set_value_cansleep(gpio26, 0);
-		gpio_set_value_cansleep(gpio25, 0);
-		gpio_set_value_cansleep(gpio36, 1);
-
-		if (machine_is_apq8064_liquid()) {
-			gpio_set_value_cansleep(mpp3, 0);
-
-			rc = regulator_disable(reg_ext_3p3v);
-			if (rc) {
-				pr_err("disable reg_ext_3p3v failed, rc=%d\n",
-					rc);
-				return -ENODEV;
-			}
-		}
-
-		rc = regulator_disable(reg_l11);
+		rc = regulator_enable(reg_lvs7);
 		if (rc) {
-			pr_err("disable reg_l1 failed, rc=%d\n", rc);
+			pr_err("enable lvs7 failed, rc=%d\n", rc);
+			return -ENODEV;
+		}
+		rc = regulator_enable(reg_l23);
+		if (rc) {
+			pr_err("enable l23 failed, rc=%d\n", rc);
+			return -ENODEV;
+		}
+
+		rc = regulator_enable(reg_ext_5p4v);
+		if (rc) {
+			pr_err("enable vsp failed, rc=%d\n", rc);
+			return -ENODEV;
+		}
+
+		gpio_direction_output(gpio25, 1);
+
+		rc = gpio_get_value(gpio12);
+		printk("lcd id %d\n", rc);
+	} else {
+		gpio_direction_output(gpio25, 0);
+
+		rc = regulator_disable(reg_ext_5p4v);
+		if (rc) {
+			pr_err("disable reg_vsp failed, rc=%d\n", rc);
 			return -ENODEV;
 		}
 
 		rc = regulator_disable(reg_lvs7);
 		if (rc) {
 			pr_err("disable reg_lvs7 failed, rc=%d\n", rc);
+			return -ENODEV;
+		}
+
+		rc = regulator_disable(reg_l23);
+		if (rc) {
+			pr_err("disable reg_l23 failed, rc=%d\n", rc);
 			return -ENODEV;
 		}
 
