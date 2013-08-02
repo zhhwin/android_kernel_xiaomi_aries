@@ -31,13 +31,13 @@
 #include "board-aries.h"
 
 struct pm8xxx_gpio_init {
-	unsigned			gpio;
-	struct pm_gpio			config;
+	unsigned gpio;
+	struct pm_gpio config;
 };
 
 struct pm8xxx_mpp_init {
-	unsigned			mpp;
-	struct pm8xxx_mpp_config_data	config;
+	unsigned mpp;
+	struct pm8xxx_mpp_config_data config;
 };
 
 #define PM8921_GPIO_INIT(_gpio, _dir, _buf, _val, _pull, _vin, _out_strength, \
@@ -114,140 +114,42 @@ struct pm8xxx_mpp_init {
 
 /* Initial PM8921 GPIO configurations */
 static struct pm8xxx_gpio_init pm8921_gpios[] __initdata = {
-	PM8921_GPIO_OUTPUT(14, 1, HIGH),	/* HDMI Mux Selector */
-	PM8921_GPIO_OUTPUT_BUFCONF(25, 0, LOW, CMOS), /* DISP_RESET_N */
-	PM8921_GPIO_OUTPUT_FUNC(26, 0, PM_GPIO_FUNC_2), /* Bl: Off, PWM mode */
-	PM8921_GPIO_OUTPUT_VIN(30, 1, PM_GPIO_VIN_VPH), /* SMB349 susp line */
-	PM8921_GPIO_OUTPUT_BUFCONF(36, 1, LOW, OPEN_DRAIN),
-	PM8921_GPIO_OUTPUT_FUNC(44, 0, PM_GPIO_FUNC_2),
-	PM8921_GPIO_OUTPUT(33, 0, HIGH),
+	PM8921_GPIO_OUTPUT(5, 0, HIGH),
+	PM8921_GPIO_OUTPUT(8, 0, HIGH),
+	PM8921_GPIO_INPUT(12, PM_GPIO_PULL_NO),
+	PM8921_GPIO_INPUT(16, PM_GPIO_PULL_NO),
+	PM8921_GPIO_OUTPUT(14, 0, HIGH),
+	PM8921_GPIO_OUTPUT(19, 0, HIGH),
+	PM8921_GPIO_OUTPUT(22, 0, HIGH),
+	PM8921_GPIO_OUTPUT(21, 0, HIGH),
 	PM8921_GPIO_OUTPUT(20, 0, HIGH),
-	PM8921_GPIO_INPUT(35, PM_GPIO_PULL_UP_30),
-	PM8921_GPIO_INPUT(38, PM_GPIO_PULL_UP_30),
-	/* TABLA CODEC RESET */
-	PM8921_GPIO_OUTPUT(34, 0, MED),
-	PM8921_GPIO_OUTPUT(13, 0, HIGH),               /* PCIE_CLK_PWR_EN */
-	PM8921_GPIO_INPUT(12, PM_GPIO_PULL_UP_30),     /* PCIE_WAKE_N */
-};
-
-static struct pm8xxx_gpio_init pm8921_mtp_kp_gpios[] __initdata = {
-	PM8921_GPIO_INPUT(3, PM_GPIO_PULL_UP_30),
-	PM8921_GPIO_INPUT(4, PM_GPIO_PULL_UP_30),
-};
-
-static struct pm8xxx_gpio_init pm8921_cdp_kp_gpios[] __initdata = {
-	PM8921_GPIO_INPUT(27, PM_GPIO_PULL_UP_30),
-	PM8921_GPIO_INPUT(42, PM_GPIO_PULL_UP_30),
-	PM8921_GPIO_INPUT(17, PM_GPIO_PULL_UP_1P5),	/* SD_WP */
-};
-
-static struct pm8xxx_gpio_init pm8921_mpq8064_hrd_gpios[] __initdata = {
-	PM8921_GPIO_OUTPUT(37, 0, LOW),	/* MUX1_SEL */
-};
-
-/* Initial PM8917 GPIO configurations */
-static struct pm8xxx_gpio_init pm8917_gpios[] __initdata = {
-	PM8921_GPIO_OUTPUT(14, 1, HIGH),	/* HDMI Mux Selector */
-	PM8921_GPIO_OUTPUT_BUFCONF(25, 0, LOW, CMOS), /* DISP_RESET_N */
-	PM8921_GPIO_OUTPUT(26, 1, HIGH), /* Backlight: on */
-	PM8921_GPIO_OUTPUT_BUFCONF(36, 1, LOW, OPEN_DRAIN),
-	PM8921_GPIO_OUTPUT_FUNC(38, 0, PM_GPIO_FUNC_2),
+	PM8921_GPIO_OUTPUT(28, 0, HIGH),
+	PM8921_GPIO_OUTPUT(11, 1, HIGH),
+	PM8921_GPIO_OUTPUT(13, 1, HIGH),
+	PM8921_GPIO_OUTPUT_FUNC(24, 0, PM_GPIO_FUNC_2),
+	PM8921_GPIO_OUTPUT_BUFCONF(25, 1, LOW, CMOS),
 	PM8921_GPIO_OUTPUT(33, 0, HIGH),
-	PM8921_GPIO_OUTPUT(20, 0, HIGH),
-	PM8921_GPIO_INPUT(35, PM_GPIO_PULL_UP_30),
-	PM8921_GPIO_INPUT(30, PM_GPIO_PULL_UP_30),
-	/* TABLA CODEC RESET */
 	PM8921_GPIO_OUTPUT(34, 1, MED),
-	PM8921_GPIO_OUTPUT(13, 0, HIGH),               /* PCIE_CLK_PWR_EN */
-	PM8921_GPIO_INPUT(12, PM_GPIO_PULL_UP_30),     /* PCIE_WAKE_N */
-};
-
-/* PM8921 GPIO 42 remaps to PM8917 GPIO 8 */
-static struct pm8xxx_gpio_init pm8917_cdp_kp_gpios[] __initdata = {
-	PM8921_GPIO_INPUT(27, PM_GPIO_PULL_UP_30),
-	PM8921_GPIO_INPUT(8, PM_GPIO_PULL_UP_30),
-	PM8921_GPIO_INPUT(17, PM_GPIO_PULL_UP_1P5),	/* SD_WP */
-};
-
-static struct pm8xxx_gpio_init pm8921_8917_cdp_ts_gpios[] __initdata = {
-	PM8921_GPIO_OUTPUT(23, 0, HIGH),	/* touchscreen power FET */
-};
-
-static struct pm8xxx_gpio_init pm8921_mpq_gpios[] __initdata = {
-	PM8921_GPIO_INIT(27, PM_GPIO_DIR_IN, PM_GPIO_OUT_BUF_CMOS, 0,
-			PM_GPIO_PULL_NO, PM_GPIO_VIN_VPH, PM_GPIO_STRENGTH_NO,
-			PM_GPIO_FUNC_NORMAL, 0, 0),
+	PM8921_GPIO_INPUT(37, PM_GPIO_PULL_UP_30),
 };
 
 /* Initial PM8XXX MPP configurations */
 static struct pm8xxx_mpp_init pm8xxx_mpps[] __initdata = {
-	PM8921_MPP_INIT(3, D_OUTPUT, PM8921_MPP_DIG_LEVEL_VPH, DOUT_CTRL_LOW),
-	/* External 5V regulator enable; shared by HDMI and USB_OTG switches. */
-	PM8921_MPP_INIT(7, D_OUTPUT, PM8921_MPP_DIG_LEVEL_VPH, DOUT_CTRL_LOW),
-	PM8921_MPP_INIT(8, D_OUTPUT, PM8921_MPP_DIG_LEVEL_S4, DOUT_CTRL_LOW),
-	/*MPP9 is used to detect docking station connection/removal on Liquid*/
-	PM8921_MPP_INIT(9, D_INPUT, PM8921_MPP_DIG_LEVEL_S4, DIN_TO_INT),
-	/* PCIE_RESET_N */
-	PM8921_MPP_INIT(1, D_OUTPUT, PM8921_MPP_DIG_LEVEL_VPH, DOUT_CTRL_HIGH),
+	PM8921_MPP_INIT(7, D_OUTPUT, PM8921_MPP_DIG_LEVEL_S4, DOUT_CTRL_LOW),
 };
-
-static struct pm8xxx_gpio_init pm8921_sglte2_gpios[] __initdata = {
-	PM8921_GPIO_OUTPUT(23, 1, HIGH),		/* PM2QSC_SOFT_RESET */
-	PM8921_GPIO_OUTPUT(21, 1, HIGH),		/* PM2QSC_KEYPADPWR */
-};
-
-void __init apq8064_configure_gpios(struct pm8xxx_gpio_init *data, int len)
-{
-	int i, rc;
-
-	for (i = 0; i < len; i++) {
-		rc = pm8xxx_gpio_config(data[i].gpio, &data[i].config);
-		if (rc)
-			pr_err("%s: pm8xxx_gpio_config(%u) failed: rc=%d\n",
-				__func__, data[i].gpio, rc);
-	}
-}
 
 void __init apq8064_pm8xxx_gpio_mpp_init(void)
 {
 	int i, rc;
 
-	if (socinfo_get_pmic_model() != PMIC_MODEL_PM8917)
-		apq8064_configure_gpios(pm8921_gpios, ARRAY_SIZE(pm8921_gpios));
-	else
-		apq8064_configure_gpios(pm8917_gpios, ARRAY_SIZE(pm8917_gpios));
-
-	if (machine_is_apq8064_cdp() || machine_is_apq8064_liquid()) {
-		if (socinfo_get_pmic_model() != PMIC_MODEL_PM8917)
-			apq8064_configure_gpios(pm8921_cdp_kp_gpios,
-					ARRAY_SIZE(pm8921_cdp_kp_gpios));
-		else
-			apq8064_configure_gpios(pm8917_cdp_kp_gpios,
-					ARRAY_SIZE(pm8917_cdp_kp_gpios));
-
-		apq8064_configure_gpios(pm8921_8917_cdp_ts_gpios,
-				ARRAY_SIZE(pm8921_8917_cdp_ts_gpios));
-	}
-
-	if (machine_is_apq8064_mtp()) {
-		apq8064_configure_gpios(pm8921_mtp_kp_gpios,
-					ARRAY_SIZE(pm8921_mtp_kp_gpios));
-		if (socinfo_get_platform_subtype() ==
-					PLATFORM_SUBTYPE_SGLTE2) {
-			apq8064_configure_gpios(pm8921_sglte2_gpios,
-					ARRAY_SIZE(pm8921_sglte2_gpios));
+	for (i = 0; i < ARRAY_SIZE(pm8921_gpios); i++) {
+		rc = pm8xxx_gpio_config(pm8921_gpios[i].gpio,
+					&pm8921_gpios[i].config);
+		if (rc) {
+			pr_err("%s: pm8xxx_gpio_config: rc=%d\n", __func__, rc);
+			break;
 		}
 	}
-
-	if (machine_is_mpq8064_cdp() || machine_is_mpq8064_hrd()
-	    || machine_is_mpq8064_dtv())
-		apq8064_configure_gpios(pm8921_mpq_gpios,
-					ARRAY_SIZE(pm8921_mpq_gpios));
-
-	if (machine_is_mpq8064_hrd())
-		apq8064_configure_gpios(pm8921_mpq8064_hrd_gpios,
-					ARRAY_SIZE(pm8921_mpq8064_hrd_gpios));
-
 	for (i = 0; i < ARRAY_SIZE(pm8xxx_mpps); i++) {
 		rc = pm8xxx_mpp_config(pm8xxx_mpps[i].mpp,
 					&pm8xxx_mpps[i].config);
@@ -259,19 +161,25 @@ void __init apq8064_pm8xxx_gpio_mpp_init(void)
 }
 
 static struct pm8xxx_pwrkey_platform_data apq8064_pm8921_pwrkey_pdata = {
-	.pull_up		= 1,
-	.kpd_trigger_delay_us	= 15625,
-	.wakeup			= 1,
+	.pull_up = 1,
+	.kpd_trigger_delay_us = 15625,
+	.wakeup = 1,
 };
 
 static struct pm8xxx_misc_platform_data apq8064_pm8921_misc_pdata = {
-	.priority		= 0,
+	.priority = 0,
 };
 
-#define PM8921_LC_LED_MAX_CURRENT	4	/* I = 4mA */
-#define PM8921_LC_LED_LOW_CURRENT	1	/* I = 1mA */
-#define PM8XXX_LED_PWM_PERIOD		1000
-#define PM8XXX_LED_PWM_DUTY_MS		20
+#define PM8921_LC_LED_MAX_CURRENT 4	/* I = 4mA */
+#define PM8921_LC_LED_LOW_CURRENT 1	/* I = 1mA */
+#define PM8XXX_LED_PWM_ADJUST_BRIGHTNESS_E 10	/* max duty percentage */
+#define PM8XXX_LED_PWM_PERIOD     1000
+#define PM8XXX_LED_PWM_DUTY_MS    50
+#define PM8XXX_LED_PWM_DUTY_PCTS  16
+#define PM8XXX_LED_PWM_START_IDX0 16
+#define PM8XXX_LED_PWM_START_IDX1 32
+#define PM8XXX_LED_PWM_START_IDX2 48
+
 /**
  * PM8XXX_PWM_CHANNEL_NONE shall be used when LED shall not be
  * driven using PWM feature.
@@ -280,8 +188,13 @@ static struct pm8xxx_misc_platform_data apq8064_pm8921_misc_pdata = {
 
 static struct led_info pm8921_led_info[] = {
 	[0] = {
-		.name			= "led:red",
-		.default_trigger	= "ac-online",
+		.name = "red",
+	},
+	[1] = {
+		.name = "green",
+	},
+	[2] = {
+		.name = "blue",
 	},
 };
 
@@ -290,35 +203,58 @@ static struct led_platform_data pm8921_led_core_pdata = {
 	.leds = pm8921_led_info,
 };
 
-static int pm8921_led0_pwm_duty_pcts[56] = {
-	1, 4, 8, 12, 16, 20, 24, 28, 32, 36,
-	40, 44, 46, 52, 56, 60, 64, 68, 72, 76,
-	80, 84, 88, 92, 96, 100, 100, 100, 98, 95,
-	92, 88, 84, 82, 78, 74, 70, 66, 62, 58,
-	58, 54, 50, 48, 42, 38, 34, 30, 26, 22,
-	14, 10, 6, 4, 1
-};
+static int pm8921_led0_pwm_duty_pcts[PM8XXX_LED_PWM_DUTY_PCTS] = {0,};
+static int pm8921_led1_pwm_duty_pcts[PM8XXX_LED_PWM_DUTY_PCTS] = {0,};
+static int pm8921_led2_pwm_duty_pcts[PM8XXX_LED_PWM_DUTY_PCTS] = {0,};
 
-/*
- * Note: There is a bug in LPG module that results in incorrect
- * behavior of pattern when LUT index 0 is used. So effectively
- * there are 63 usable LUT entries.
- */
 static struct pm8xxx_pwm_duty_cycles pm8921_led0_pwm_duty_cycles = {
 	.duty_pcts = (int *)&pm8921_led0_pwm_duty_pcts,
-	.num_duty_pcts = ARRAY_SIZE(pm8921_led0_pwm_duty_pcts),
+	.num_duty_pcts = PM8XXX_LED_PWM_DUTY_PCTS,
 	.duty_ms = PM8XXX_LED_PWM_DUTY_MS,
-	.start_idx = 1,
+	.start_idx = PM8XXX_LED_PWM_START_IDX0,
+};
+
+static struct pm8xxx_pwm_duty_cycles pm8921_led1_pwm_duty_cycles = {
+	.duty_pcts = (int *)&pm8921_led1_pwm_duty_pcts,
+	.num_duty_pcts = PM8XXX_LED_PWM_DUTY_PCTS,
+	.duty_ms = PM8XXX_LED_PWM_DUTY_MS,
+	.start_idx = PM8XXX_LED_PWM_START_IDX1,
+};
+
+static struct pm8xxx_pwm_duty_cycles pm8921_led2_pwm_duty_cycles = {
+	.duty_pcts = (int *)&pm8921_led2_pwm_duty_pcts,
+	.num_duty_pcts = PM8XXX_LED_PWM_DUTY_PCTS,
+	.duty_ms = PM8XXX_LED_PWM_DUTY_MS,
+	.start_idx = PM8XXX_LED_PWM_START_IDX2,
 };
 
 static struct pm8xxx_led_config pm8921_led_configs[] = {
 	[0] = {
 		.id = PM8XXX_ID_LED_0,
+		.mode = PM8XXX_LED_MODE_PWM3,
+		.max_current = PM8921_LC_LED_MAX_CURRENT,
+		.pwm_channel = 6,
+		.pwm_period_us = PM8XXX_LED_PWM_PERIOD,
+		.pwm_duty_cycles = &pm8921_led0_pwm_duty_cycles,
+		.pwm_adjust_brightness = 52,
+	},
+	[1] = {
+		.id = PM8XXX_ID_LED_1,
 		.mode = PM8XXX_LED_MODE_PWM2,
 		.max_current = PM8921_LC_LED_MAX_CURRENT,
 		.pwm_channel = 5,
 		.pwm_period_us = PM8XXX_LED_PWM_PERIOD,
-		.pwm_duty_cycles = &pm8921_led0_pwm_duty_cycles,
+		.pwm_duty_cycles = &pm8921_led1_pwm_duty_cycles,
+		.pwm_adjust_brightness = 43,
+	},
+	[2] = {
+		.id = PM8XXX_ID_LED_2,
+		.mode = PM8XXX_LED_MODE_PWM1,
+		.max_current = PM8921_LC_LED_MAX_CURRENT,
+		.pwm_channel = 4,
+		.pwm_period_us = PM8XXX_LED_PWM_PERIOD,
+		.pwm_duty_cycles = &pm8921_led2_pwm_duty_cycles,
+		.pwm_adjust_brightness = 75,
 	},
 };
 
@@ -326,6 +262,7 @@ static struct pm8xxx_led_platform_data apq8064_pm8921_leds_pdata = {
 		.led_core = &pm8921_led_core_pdata,
 		.configs = pm8921_led_configs,
 		.num_configs = ARRAY_SIZE(pm8921_led_configs),
+		.use_pwm = 1,
 };
 
 static struct pm8xxx_adc_amux apq8064_pm8921_adc_channels_data[] = {
@@ -357,6 +294,8 @@ static struct pm8xxx_adc_amux apq8064_pm8921_adc_channels_data[] = {
 		ADC_DECIMATION_TYPE2, ADC_SCALE_DEFAULT},
 	{"xo_therm", CHANNEL_MUXOFF, CHAN_PATH_SCALING1, AMUX_RSV0,
 		ADC_DECIMATION_TYPE2, ADC_SCALE_XOTHERM},
+	{"usb_id", ADC_MPP_1_AMUX6, CHAN_PATH_SCALING1, AMUX_RSV1,
+		ADC_DECIMATION_TYPE2, ADC_SCALE_DEFAULT},
 };
 
 static struct pm8xxx_adc_properties apq8064_pm8921_adc_data = {
@@ -392,8 +331,8 @@ apq8064_pm8921_irq_pdata __devinitdata = {
 
 static struct pm8xxx_rtc_platform_data
 apq8064_pm8921_rtc_pdata = {
-	.rtc_write_enable       = false,
-	.rtc_alarm_powerup      = false,
+	.rtc_write_enable       = true,
+	.rtc_alarm_powerup      = true,
 };
 
 static int apq8064_pm8921_therm_mitigation[] = {
@@ -413,20 +352,21 @@ apq8064_pm8921_chg_pdata __devinitdata = {
 	.uvd_thresh_voltage	= 4050,
 	.alarm_low_mv		= 3400,
 	.alarm_high_mv		= 4000,
-	.resume_voltage_delta	= 60,
+	.resume_voltage_delta	= 20,
 	.resume_charge_percent	= 99,
 	.term_current		= CHG_TERM_MA,
-	.cool_temp		= 10,
+	.cool_temp		= 0,
 	.warm_temp		= 45,
 	.temp_check_period	= 1,
-	.max_bat_chg_current	= 1100,
+	.max_bat_chg_current	= 1000,
 	.cool_bat_chg_current	= 350,
 	.warm_bat_chg_current	= 350,
 	.cool_bat_voltage	= 4100,
 	.warm_bat_voltage	= 4100,
 	.thermal_mitigation	= apq8064_pm8921_therm_mitigation,
 	.thermal_levels		= ARRAY_SIZE(apq8064_pm8921_therm_mitigation),
-	.rconn_mohm		= 18,
+	.rconn_mohm		= 50,
+	.cold_thr		= PM_SMBC_BATT_TEMP_COLD_THR__HIGH,
 };
 
 static struct pm8xxx_ccadc_platform_data
@@ -441,8 +381,8 @@ apq8064_pm8921_bms_pdata __devinitdata = {
 	.r_sense_uohm			= 10000,
 	.v_cutoff			= 3400,
 	.max_voltage_uv			= MAX_VOLTAGE_MV * 1000,
-	.rconn_mohm			= 18,
-	.shutdown_soc_valid_limit	= 20,
+	.rconn_mohm			= 50,
+	.shutdown_soc_valid_limit	= 10,
 	.adjust_soc_low_threshold	= 25,
 	.chg_term_ua			= CHG_TERM_MA * 1000,
 	.normal_voltage_calc_ms		= 20000,
@@ -458,13 +398,39 @@ apq8064_pm8921_bms_pdata __devinitdata = {
 	.min_fcc_learning_samples	= 5,
 };
 
+static unsigned int keymap[] = {
+	KEY(0, 0, KEY_VOLUMEUP),
+	KEY(0, 1, KEY_VOLUMEDOWN),
+};
+
+static struct matrix_keymap_data keymap_data = {
+	.keymap_size    = ARRAY_SIZE(keymap),
+	.keymap         = keymap,
+};
+
+static struct pm8xxx_keypad_platform_data keypad_data = {
+	.input_name             = "keypad_8064",
+	.input_phys_device      = "keypad_8064/input0",
+	.num_rows               = 1,
+	.num_cols               = 5,
+	.rows_gpio_start	= PM8921_GPIO_PM_TO_SYS(9),
+	.cols_gpio_start	= PM8921_GPIO_PM_TO_SYS(1),
+	.debounce_ms            = 15,
+	.scan_delay_ms          = 32,
+	.row_hold_ns            = 91500,
+	.wakeup                 = 1,
+	.keymap_data            = &keymap_data,
+};
+
 static struct pm8921_platform_data
 apq8064_pm8921_platform_data __devinitdata = {
+	.regulator_pdatas	= msm8064_pm8921_regulator_pdata,
 	.irq_pdata		= &apq8064_pm8921_irq_pdata,
 	.gpio_pdata		= &apq8064_pm8921_gpio_pdata,
 	.mpp_pdata		= &apq8064_pm8921_mpp_pdata,
 	.rtc_pdata		= &apq8064_pm8921_rtc_pdata,
 	.pwrkey_pdata		= &apq8064_pm8921_pwrkey_pdata,
+	.keypad_pdata		= &keypad_data,
 	.misc_pdata		= &apq8064_pm8921_misc_pdata,
 	.leds_pdata		= &apq8064_pm8921_leds_pdata,
 	.adc_pdata		= &apq8064_pm8921_adc_pdata,
@@ -488,23 +454,23 @@ apq8064_pm8821_mpp_pdata __devinitdata = {
 
 static struct pm8821_platform_data
 apq8064_pm8821_platform_data __devinitdata = {
-	.irq_pdata	= &apq8064_pm8821_irq_pdata,
-	.mpp_pdata	= &apq8064_pm8821_mpp_pdata,
+	.irq_pdata = &apq8064_pm8821_irq_pdata,
+	.mpp_pdata = &apq8064_pm8821_mpp_pdata,
 };
 
 static struct msm_ssbi_platform_data apq8064_ssbi_pm8921_pdata __devinitdata = {
 	.controller_type = MSM_SBI_CTRL_PMIC_ARBITER,
 	.slave	= {
-		.name		= "pm8921-core",
-		.platform_data	= &apq8064_pm8921_platform_data,
+		.name = "pm8921-core",
+		.platform_data = &apq8064_pm8921_platform_data,
 	},
 };
 
 static struct msm_ssbi_platform_data apq8064_ssbi_pm8821_pdata __devinitdata = {
 	.controller_type = MSM_SBI_CTRL_PMIC_ARBITER,
 	.slave	= {
-		.name		= "pm8821-core",
-		.platform_data	= &apq8064_pm8821_platform_data,
+		.name = "pm8821-core",
+		.platform_data = &apq8064_pm8821_platform_data,
 	},
 };
 
@@ -513,9 +479,9 @@ void __init apq8064_init_pmic(void)
 	pmic_reset_irq = PM8921_IRQ_BASE + PM8921_RESOUT_IRQ;
 
 	apq8064_device_ssbi_pmic1.dev.platform_data =
-						&apq8064_ssbi_pm8921_pdata;
+		&apq8064_ssbi_pm8921_pdata;
 	apq8064_device_ssbi_pmic2.dev.platform_data =
-				&apq8064_ssbi_pm8821_pdata;
+		&apq8064_ssbi_pm8821_pdata;
 	if (socinfo_get_pmic_model() != PMIC_MODEL_PM8917) {
 		apq8064_pm8921_platform_data.regulator_pdatas
 			= msm8064_pm8921_regulator_pdata;
@@ -528,17 +494,6 @@ void __init apq8064_init_pmic(void)
 			= msm8064_pm8917_regulator_pdata_len;
 	}
 
-	if (machine_is_apq8064_mtp()) {
-		apq8064_pm8921_bms_pdata.battery_type = BATT_PALLADIUM;
-	} else if (machine_is_apq8064_liquid()) {
-		apq8064_pm8921_bms_pdata.battery_type = BATT_DESAY;
-	} else if (machine_is_apq8064_cdp()) {
-		apq8064_pm8921_chg_pdata.has_dc_supply = true;
-	}
-
 	if (!machine_is_apq8064_mtp() && !machine_is_apq8064_liquid())
 		apq8064_pm8921_chg_pdata.battery_less_hardware = 1;
-
-	if (machine_is_mpq8064_hrd())
-		apq8064_pm8921_chg_pdata.disable_chg_rmvl_wrkarnd = 1;
 }
