@@ -102,6 +102,7 @@
 #define MSM_ION_MFC_META_SIZE  0x40000 /* 256 Kbytes */
 #define MSM_CONTIG_MEM_SIZE  0x65000
 #ifdef CONFIG_MSM_IOMMU
+
 #define MSM_ION_MM_SIZE		0x3800000
 #define MSM_ION_SF_SIZE		0
 #define MSM_ION_QSECOM_SIZE	0x780000 /* (7.5MB) */
@@ -2106,15 +2107,6 @@ static struct platform_device apq8064_device_ext_5p4v_vreg __devinitdata = {
 	},
 };
 
-static struct platform_device apq8064_device_ext_ts_sw_vreg __devinitdata = {
-	.name	= GPIO_REGULATOR_DEV_NAME,
-	.id	= PM8921_GPIO_PM_TO_SYS(23),
-	.dev	= {
-		.platform_data
-			= &apq8064_gpio_regulator_pdata[GPIO_VREG_ID_EXT_TS_SW],
-	},
-};
-
 static struct platform_device apq8064_device_rpm_regulator __devinitdata = {
 	.name	= "rpm-regulator",
 	.id	= 0,
@@ -2295,34 +2287,6 @@ static struct platform_device *cdp_devices[] __initdata = {
 	&msm8064_cpu_slp_status,
 };
 
-static int rf4ce_gpio_init(void)
-{
-	if (!machine_is_mpq8064_cdp() &&
-		!machine_is_mpq8064_hrd() &&
-			!machine_is_mpq8064_dtv())
-		return -EINVAL;
-
-	/* CC2533 SRDY Input */
-	if (!gpio_request(SX150X_GPIO(4, 6), "rf4ce_srdy")) {
-		gpio_direction_input(SX150X_GPIO(4, 6));
-		gpio_export(SX150X_GPIO(4, 6), true);
-	}
-
-	/* CC2533 MRDY Output */
-	if (!gpio_request(SX150X_GPIO(4, 5), "rf4ce_mrdy")) {
-		gpio_direction_output(SX150X_GPIO(4, 5), 1);
-		gpio_export(SX150X_GPIO(4, 5), true);
-	}
-
-	/* CC2533 Reset Output */
-	if (!gpio_request(SX150X_GPIO(4, 7), "rf4ce_reset")) {
-		gpio_direction_output(SX150X_GPIO(4, 7), 0);
-		gpio_export(SX150X_GPIO(4, 7), true);
-	}
-
-	return 0;
-}
-late_initcall(rf4ce_gpio_init);
 
 static struct msm_spi_platform_data apq8064_qup_spi_gsbi5_pdata = {
 	.max_clock_speed = 1100000,
@@ -2686,7 +2650,7 @@ static void __init register_i2c_devices(void)
 
 #ifdef CONFIG_MSM_CAMERA
 	struct i2c_registry apq8064_camera_i2c_devices = {
-		I2C_SURF | I2C_FFA | I2C_LIQUID | I2C_RUMI,
+		I2C_FFA,
 		APQ_8064_GSBI4_QUP_I2C_BUS_ID,
 		apq8064_camera_board_info.board_info,
 		apq8064_camera_board_info.num_i2c_board_info,
@@ -2802,8 +2766,6 @@ static void __init apq8064_common_init(void)
 	apq8064_device_qup_spi_gsbi5.dev.platform_data =
 						&apq8064_qup_spi_gsbi5_pdata;
 	apq8064_init_pmic();
-	if (machine_is_apq8064_liquid())
-		msm_otg_pdata.mhl_enable = true;
 
 	android_usb_pdata.swfi_latency =
 		msm_rpmrs_levels[0].latency_us;
@@ -2820,75 +2782,64 @@ static void __init apq8064_common_init(void)
 		platform_add_devices(pm8917_common_devices,
 					ARRAY_SIZE(pm8917_common_devices));
 
-	if (!machine_is_apq8064_mtp())
-		platform_device_register(&apq8064_device_ext_ts_sw_vreg);
-
 	platform_add_devices(common_devices, ARRAY_SIZE(common_devices));
-	if (!(machine_is_mpq8064_cdp() || machine_is_mpq8064_hrd() ||
-			machine_is_mpq8064_dtv())) {
-		platform_add_devices(common_not_mpq_devices,
-			ARRAY_SIZE(common_not_mpq_devices));
+	platform_add_devices(common_not_mpq_devices,
+		ARRAY_SIZE(common_not_mpq_devices));
 
-		/* Add GSBI4 I2C Device for non-fusion3 platform */
-		if (socinfo_get_platform_subtype() !=
-					PLATFORM_SUBTYPE_SGLTE2) {
-			platform_device_register(&apq8064_device_qup_i2c_gsbi4);
-		}
+	/* Add GSBI4 I2C Device for non-fusion3 platform */
+	if (socinfo_get_platform_subtype() !=
+				PLATFORM_SUBTYPE_SGLTE2) {
+		platform_device_register(&apq8064_device_qup_i2c_gsbi4);
 	}
 
 	msm_hsic_pdata.swfi_latency =
-		msm_rpmrs_levels[0].latency_us;
-	if (machine_is_apq8064_mtp()) {
-		msm_hsic_pdata.log2_irq_thresh = 5,
-		apq8064_device_hsic_host.dev.platform_data = &msm_hsic_pdata;
-		device_initialize(&apq8064_device_hsic_host.dev);
-		if (socinfo_get_platform_subtype() == PLATFORM_SUBTYPE_DSDA2) {
-			apq8064_device_ehci_host3.dev.platform_data =
-				&msm_ehci_host_pdata3;
-			device_initialize(&apq8064_device_ehci_host3.dev);
-		}
+	msm_rpmrs_levels[0].latency_us;
+	msm_hsic_pdata.log2_irq_thresh = 5,
+	apq8064_device_hsic_host.dev.platform_data = &msm_hsic_pdata;
+	device_initialize(&apq8064_device_hsic_host.dev);
+	if (socinfo_get_platform_subtype() == PLATFORM_SUBTYPE_DSDA2) {
+		apq8064_device_ehci_host3.dev.platform_data =
+			&msm_ehci_host_pdata3;
+		device_initialize(&apq8064_device_ehci_host3.dev);
 	}
 	apq8064_pm8xxx_gpio_mpp_init();
 	apq8064_init_mmc();
 
-	if (machine_is_apq8064_mtp()) {
-		if (socinfo_get_platform_subtype() == PLATFORM_SUBTYPE_DSDA2) {
-			amdm_8064_device.dev.platform_data =
-				&amdm_platform_data;
-			platform_device_register(&amdm_8064_device);
-			bmdm_8064_device.dev.platform_data =
-				&bmdm_platform_data;
-			platform_device_register(&bmdm_8064_device);
-		} else if (socinfo_get_platform_subtype() ==
-				   PLATFORM_SUBTYPE_SGLTE2) {
-			sglte_mdm_8064_device.dev.platform_data =
-				&sglte2_mdm_platform_data;
-			platform_device_register(&sglte_mdm_8064_device);
-			sglte2_qsc_8064_device.dev.platform_data =
-				&sglte2_qsc_platform_data;
-			platform_device_register(&sglte2_qsc_8064_device);
+	if (socinfo_get_platform_subtype() == PLATFORM_SUBTYPE_DSDA2) {
+		amdm_8064_device.dev.platform_data =
+			&amdm_platform_data;
+		platform_device_register(&amdm_8064_device);
+		bmdm_8064_device.dev.platform_data =
+			&bmdm_platform_data;
+		platform_device_register(&bmdm_8064_device);
+	} else if (socinfo_get_platform_subtype() ==
+			   PLATFORM_SUBTYPE_SGLTE2) {
+		sglte_mdm_8064_device.dev.platform_data =
+			&sglte2_mdm_platform_data;
+		platform_device_register(&sglte_mdm_8064_device);
+		sglte2_qsc_8064_device.dev.platform_data =
+			&sglte2_qsc_platform_data;
+		platform_device_register(&sglte2_qsc_8064_device);
 
-			/* GSBI4 UART device for Primay IPC */
-			apq8064_uartdm_gsbi4_pdata.wakeup_irq = gpio_to_irq(11);
-			apq8064_device_uartdm_gsbi4.dev.platform_data =
-						&apq8064_uartdm_gsbi4_pdata;
-			platform_device_register(&apq8064_device_uartdm_gsbi4);
-		} else if (SOCINFO_VERSION_MINOR(platform_version) == 1) {
-			i2s_mdm_8064_device.dev.platform_data =
-				&mdm_platform_data;
-			platform_device_register(&i2s_mdm_8064_device);
-		} else {
-			mdm_8064_device.dev.platform_data = &mdm_platform_data;
-			platform_device_register(&mdm_8064_device);
-		}
+		/* GSBI4 UART device for Primay IPC */
+		apq8064_uartdm_gsbi4_pdata.wakeup_irq = gpio_to_irq(11);
+		apq8064_device_uartdm_gsbi4.dev.platform_data =
+					&apq8064_uartdm_gsbi4_pdata;
+		platform_device_register(&apq8064_device_uartdm_gsbi4);
+	} else if (SOCINFO_VERSION_MINOR(platform_version) == 1) {
+		i2s_mdm_8064_device.dev.platform_data =
+			&mdm_platform_data;
+		platform_device_register(&i2s_mdm_8064_device);
+	} else {
+		mdm_8064_device.dev.platform_data = &mdm_platform_data;
+		platform_device_register(&mdm_8064_device);
 	}
+
 	platform_device_register(&apq8064_slim_ctrl);
 	slim_register_board_info(apq8064_slim_devices,
 		ARRAY_SIZE(apq8064_slim_devices));
-	if (!PLATFORM_IS_MPQ8064()) {
-		apq8064_init_dsps();
-		platform_device_register(&msm_8960_riva);
-	}
+	apq8064_init_dsps();
+	platform_device_register(&msm_8960_riva);
 	BUG_ON(msm_pm_boot_init(&msm_pm_boot_pdata));
 	apq8064_epm_adc_init();
 }

@@ -714,8 +714,9 @@ int msm8064_pm8917_regulator_pdata_len __devinitdata =
 		.supply = _supply, \
 		.dev_name = _dev_name, \
 	}
+
 static struct rpm_regulator_consumer_mapping
-	      msm_rpm_regulator_consumer_mapping[] __devinitdata = {
+		msm_rpm_regulator_consumer_mapping[] __devinitdata = {
 	RPM_REG_MAP(LVS7, 0, 1, "krait0_hfpll", "acpuclk-8064"),
 	RPM_REG_MAP(LVS7, 0, 2, "krait1_hfpll", "acpuclk-8064"),
 	RPM_REG_MAP(LVS7, 0, 4, "krait2_hfpll", "acpuclk-8064"),
@@ -732,13 +733,13 @@ static struct rpm_regulator_consumer_mapping
 };
 
 struct rpm_regulator_platform_data apq8064_rpm_regulator_pdata __devinitdata = {
-	.init_data		  = apq8064_rpm_regulator_init_data,
-	.num_regulators		  = ARRAY_SIZE(apq8064_rpm_regulator_init_data),
-	.version		  = RPM_VREG_VERSION_8960,
-	.vreg_id_vdd_mem	  = RPM_VREG_ID_PM8921_L24,
-	.vreg_id_vdd_dig	  = RPM_VREG_ID_PM8921_S3,
+	.init_data                = apq8064_rpm_regulator_init_data,
+	.num_regulators           = ARRAY_SIZE(apq8064_rpm_regulator_init_data),
+	.version                  = RPM_VREG_VERSION_8960,
+	.vreg_id_vdd_mem          = RPM_VREG_ID_PM8921_L24,
+	.vreg_id_vdd_dig          = RPM_VREG_ID_PM8921_S3,
 	.requires_tcxo_workaround = true,
-	.consumer_map		  = msm_rpm_regulator_consumer_mapping,
+	.consumer_map             = msm_rpm_regulator_consumer_mapping,
 	.consumer_map_len = ARRAY_SIZE(msm_rpm_regulator_consumer_mapping),
 };
 
