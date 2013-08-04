@@ -2656,6 +2656,7 @@ static void __init register_i2c_devices(void)
 		apq8064_camera_board_info.num_i2c_board_info,
 	};
 #endif
+
 	/* Build the matching 'supported_machs' bitmask */
 	if (machine_is_apq8064_cdp())
 		mach_mask = I2C_SURF;
@@ -2879,7 +2880,7 @@ static void __init apq8064_aries_init(void)
 	apq8064_init_misc();
 }
 
-MACHINE_START(APQ8064_MTP, "QCT APQ8064 ARIES")
+MACHINE_START(APQ8064_ARIES, "QCT APQ8064 ARIES")
 	.map_io = apq8064_map_io,
 	.reserve = apq8064_reserve,
 	.init_irq = apq8064_init_irq,
