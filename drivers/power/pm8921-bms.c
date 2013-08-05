@@ -3018,9 +3018,9 @@ static int get_reading(void *data, u64 * val)
 	int ret = 0;
 	struct pm8921_soc_params raw;
 
-	mutex_lock(&the_chip->last_ocv_uv_mutex);
+	mutex_lock(&the_chip->bms_output_lock);
 	read_soc_params_raw(the_chip, &raw, 300);
-	mutex_lock(&the_chip->last_ocv_uv_mutex);
+	mutex_unlock(&the_chip->bms_output_lock);
 
 	*val = 0;
 
