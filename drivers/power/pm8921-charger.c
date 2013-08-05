@@ -1576,17 +1576,12 @@ static int get_prop_battery_uvolts(struct pm8921_chg_chip *chip)
 	return (int)result.physical;
 }
 
-static int voltage_based_capacity(struct pm8921_chg_chip *chip)
+static unsigned int voltage_based_capacity(struct pm8921_chg_chip *chip)
 {
-	int current_voltage_uv = get_prop_battery_uvolts(chip);
-	int current_voltage_mv = current_voltage_uv / 1000;
+	unsigned int current_voltage_uv = get_prop_battery_uvolts(chip);
+	unsigned int current_voltage_mv = current_voltage_uv / 1000;
 	unsigned int low_voltage = chip->min_voltage_mv;
 	unsigned int high_voltage = chip->max_voltage_mv;
-
-	if (current_voltage_uv < 0) {
-		pr_err("Error reading current voltage\n");
-		return -EIO;
-	}
 
 	if (current_voltage_mv <= low_voltage)
 		return 0;
@@ -1645,11 +1640,6 @@ static int get_prop_batt_capacity(struct pm8921_chg_chip *chip)
 	if (percent_soc == -ENXIO)
 		percent_soc = voltage_based_capacity(chip);
 
-	if (percent_soc < 0) {
-		pr_err("Unable to read battery voltage\n");
-		goto fail_voltage;
-	}
-
 	if (percent_soc <= 10)
 		pr_warn_ratelimited("low battery charge = %d%%\n",
 						percent_soc);
@@ -1670,34 +1660,30 @@ static int get_prop_batt_capacity(struct pm8921_chg_chip *chip)
 			pm_chg_vbatdet_set(the_chip, PM8921_CHG_VBATDET_MAX);
 	}
 
-fail_voltage:
 	chip->recent_reported_soc = percent_soc;
 	return percent_soc;
 }
 
-static int get_prop_batt_current_max(struct pm8921_chg_chip *chip, int *curr)
+static int get_prop_batt_current_max(struct pm8921_chg_chip *chip)
 {
-	*curr = 0;
-	*curr = pm8921_bms_get_current_max();
-	if (*curr == -EINVAL)
-		return -EINVAL;
-
-	return 0;
+	return pm8921_bms_get_current_max();
 }
 
-static int get_prop_batt_current(struct pm8921_chg_chip *chip, int *curr)
+static int get_prop_batt_current(struct pm8921_chg_chip *chip)
 {
-	int rc;
+	int result_ua, rc;
 
-	*curr = 0;
-	rc = pm8921_bms_get_battery_current(curr);
+	rc = pm8921_bms_get_battery_current(&result_ua);
 	if (rc == -ENXIO) {
-		rc = pm8xxx_ccadc_get_battery_current(curr);
+		rc = pm8xxx_ccadc_get_battery_current(&result_ua);
 	}
-	if (rc)
-		pr_err("unable to get batt current rc = %d\n", rc);
 
-	return rc;
+	if (rc) {
+		pr_err("unable to get batt current rc = %d\n", rc);
+		return rc;
+	} else {
+		return result_ua;
+	}
 }
 
 static int get_prop_batt_fcc(struct pm8921_chg_chip *chip)
@@ -1710,15 +1696,17 @@ static int get_prop_batt_fcc(struct pm8921_chg_chip *chip)
 	return rc;
 }
 
-static int get_prop_batt_charge_now(struct pm8921_chg_chip *chip, int *cc_uah)
+static int get_prop_batt_charge_now(struct pm8921_chg_chip *chip)
 {
 	int rc;
+	int cc_uah;
 
-	*cc_uah = 0;
-	rc = pm8921_bms_cc_uah(cc_uah);
-	if (rc)
-		pr_err("unable to get batt fcc rc = %d\n", rc);
+	rc = pm8921_bms_cc_uah(&cc_uah);
 
+	if (rc == 0)
+		return cc_uah;
+
+	pr_err("unable to get batt fcc rc = %d\n", rc);
 	return rc;
 }
 
@@ -1762,15 +1750,13 @@ static int get_prop_charge_type(struct pm8921_chg_chip *chip)
 }
 
 #define MAX_TOLERABLE_BATT_TEMP_DDC	680
-static int get_prop_batt_temp(struct pm8921_chg_chip *chip, int *temp)
+static int get_prop_batt_temp(struct pm8921_chg_chip *chip)
 {
 	int rc;
 	struct pm8xxx_adc_chan_result result;
 
-	if (chip->battery_less_hardware) {
-		*temp = 300;
-		return 0;
-	}
+	if (chip->battery_less_hardware)
+		return 300;
 
 	rc = pm8xxx_adc_read(chip->batt_temp_channel, &result);
 	if (rc) {
@@ -1784,19 +1770,16 @@ static int get_prop_batt_temp(struct pm8921_chg_chip *chip, int *temp)
 		pr_err("BATT_TEMP= %d > 68degC, device will be shutdown\n",
 							(int) result.physical);
 
-	*temp = (int)result.physical;
-
-	return rc;
+	return (int)result.physical;
 }
 
 static int pm_batt_power_get_property(struct power_supply *psy,
 				       enum power_supply_property psp,
 				       union power_supply_propval *val)
 {
-	int rc = 0;
-	int value;
 	struct pm8921_chg_chip *chip = container_of(psy, struct pm8921_chg_chip,
 								batt_psy);
+
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		val->intval = get_prop_batt_status(chip);
@@ -1808,11 +1791,7 @@ static int pm_batt_power_get_property(struct power_supply *psy,
 		val->intval = get_prop_batt_health(chip);
 		break;
 	case POWER_SUPPLY_PROP_PRESENT:
-		rc = get_prop_batt_present(chip);
-		if (rc >= 0) {
-			val->intval = rc;
-			rc = 0;
-		}
+		val->intval = get_prop_batt_present(chip);
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
 		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
@@ -1824,53 +1803,31 @@ static int pm_batt_power_get_property(struct power_supply *psy,
 		val->intval = chip->min_voltage_mv * 1000;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		rc = get_prop_battery_uvolts(chip);
-		if (rc >= 0) {
-			val->intval = rc;
-			rc = 0;
-		}
+		val->intval = get_prop_battery_uvolts(chip);
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
-		rc = get_prop_batt_capacity(chip);
-		if (rc >= 0) {
-			val->intval = rc;
-			rc = 0;
-		}
+		val->intval = get_prop_batt_capacity(chip);
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
-		rc = get_prop_batt_current(chip, &value);
-		if (!rc)
-			val->intval = value;
+		val->intval = get_prop_batt_current(chip);
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
-		rc = get_prop_batt_current_max(chip, &value);
-		if (!rc)
-			val->intval = value;
+		val->intval = get_prop_batt_current_max(chip);
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
-		rc = get_prop_batt_temp(chip, &value);
-		if (!rc)
-			val->intval = value;
+		val->intval = get_prop_batt_temp(chip);
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
-		rc = get_prop_batt_fcc(chip);
-		if (rc >= 0) {
-			val->intval = rc;
-			rc = 0;
-		}
+		val->intval = get_prop_batt_fcc(chip);
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
-		rc = get_prop_batt_charge_now(chip, &value);
-		if (!rc) {
-			val->intval = value;
-			rc = 0;
-		}
+		val->intval = get_prop_batt_charge_now(chip);
 		break;
 	default:
-		rc = -EINVAL;
+		return -EINVAL;
 	}
 
-	return rc;
+	return 0;
 }
 
 static void (*notify_vbus_state_func_ptr)(int);
@@ -2240,17 +2197,11 @@ EXPORT_SYMBOL_GPL(pm8921_set_usb_power_supply_type);
 
 int pm8921_batt_temperature(void)
 {
-	int temp = 0, rc = 0;
 	if (!the_chip) {
 		pr_err("called before init\n");
 		return -EINVAL;
 	}
-	rc = get_prop_batt_temp(the_chip, &temp);
-	if (rc) {
-		pr_err("Unable to read temperature");
-		return rc;
-	}
-	return temp;
+	return get_prop_batt_temp(the_chip);
 }
 
 static void handle_usb_insertion_removal(struct pm8921_chg_chip *chip)
@@ -2784,11 +2735,12 @@ static void unplug_check_worker(struct work_struct *work)
 		/* No charger active */
 		if (!(is_usb_chg_plugged_in(chip)
 				&& !(is_dc_chg_plugged_in(chip)))) {
-			get_prop_batt_current(chip, &ibat);
 			pr_debug(
 			"Stop: chg removed reg_loop = %d, fsm = %d ibat = %d\n",
 				pm_chg_get_regulation_loop(chip),
-				pm_chg_get_fsm_state(chip), ibat);
+				pm_chg_get_fsm_state(chip),
+				get_prop_batt_current(chip)
+				);
 			return;
 		} else {
 			goto check_again_later;
@@ -2815,9 +2767,9 @@ static void unplug_check_worker(struct work_struct *work)
 	reg_loop = pm_chg_get_regulation_loop(chip);
 	pr_debug("reg_loop=0x%x usb_ma = %d\n", reg_loop, usb_ma);
 
-	rc = get_prop_batt_current(chip, &ibat);
+	ibat = get_prop_batt_current(chip);
 	if ((reg_loop & VIN_ACTIVE_BIT) && !chip->disable_chg_rmvl_wrkarnd) {
-		if (ibat > 0 && !rc) {
+		if (ibat > 0) {
 			pr_debug("revboost ibat = %d fsm = %d loop = 0x%x\n",
 				ibat, pm_chg_get_fsm_state(chip), reg_loop);
 			attempt_reverse_boost_fix(chip);
@@ -3293,9 +3245,9 @@ static void battery_warm(bool enter)
 
 static void check_temp_thresholds(struct pm8921_chg_chip *chip)
 {
-	int temp = 0, rc;
+	int temp = 0;
 
-	rc = get_prop_batt_temp(chip, &temp);
+	temp = get_prop_batt_temp(chip);
 	pr_debug("temp = %d, warm_thr_temp = %d, cool_thr_temp = %d\n",
 			temp, chip->warm_temp_dc,
 			chip->cool_temp_dc);
@@ -3516,11 +3468,7 @@ static void btc_override_worker(struct work_struct *work)
 		return;
 	}
 
-	rc = get_prop_batt_temp(chip, &decidegc);
-	if (rc) {
-		pr_info("Failed to read temperature\n");
-		goto fail_btc_temp;
-	}
+	decidegc = get_prop_batt_temp(chip);
 
 	pr_debug("temp=%d\n", decidegc);
 
@@ -3562,7 +3510,6 @@ static void btc_override_worker(struct work_struct *work)
 		return;
 	}
 
-fail_btc_temp:
 	rc = pm_chg_override_hot(chip, 0);
 	if (rc)
 		pr_err("Couldnt write 0 to hot comp\n");
