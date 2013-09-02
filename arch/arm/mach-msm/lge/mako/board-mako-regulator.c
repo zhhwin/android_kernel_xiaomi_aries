@@ -90,6 +90,9 @@ VREG_CONSUMERS(L14) = {
 VREG_CONSUMERS(L15) = {
 	REGULATOR_SUPPLY("8921_l15",		NULL),
 	REGULATOR_SUPPLY("touch_vdd",		NULL),
+#ifdef CONFIG_SND_SOC_ES310
+	REGULATOR_SUPPLY("es310_vdd",		"audience_es310"),
+#endif
 };
 VREG_CONSUMERS(L16) = {
 	REGULATOR_SUPPLY("8921_l16",		NULL),
@@ -548,7 +551,7 @@ apq8064_rpm_regulator_init_data[] __devinitdata = {
 	RPM_LDO(L11, 0, 1, 0, 2850000, 2850000, NULL,          0,     0),
 	RPM_LDO(L12, 0, 1, 0, 1200000, 1200000, "8921_s4",     0,     0),
 	RPM_LDO(L14, 0, 1, 0, 1800000, 1800000, NULL,          0,     0),
-	RPM_LDO(L15, 0, 1, 0, 3300000, 3300000, NULL,          0,    19),
+	RPM_LDO(L15, 0, 1, 0, 1800000, 2950000, NULL,          0,     0),
 	RPM_LDO(L16, 0, 1, 0, 2800000, 2800000, NULL,          0,     0),
 	RPM_LDO(L17, 0, 1, 0, 2800000, 2800000, NULL,          0,     0),
 	RPM_LDO(L18, 0, 1, 0, 1100000, 1100000, NULL,          0,     0),
